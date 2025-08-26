@@ -13,7 +13,7 @@ import { WaterDropIcon } from '@/components/icons';
 import { Clock, Moon, Sun, Bell, Droplets, Settings, Zap, Menu, Vibrate } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend, ReferenceLine } from 'recharts';
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 type DrinkLog = {
@@ -67,18 +67,15 @@ const HydrationChart = ({ data, interval }: { data: DrinkLog[]; interval: number
       drinksByHour[hourKey] = (drinksByHour[hourKey] || 0) + 1;
     });
 
-    // Create a data point for every hour from the first drink to the last
     const firstLogTime = new Date(data[0].timestamp);
     const lastLogTime = new Date(data[data.length - 1].timestamp);
     firstLogTime.setMinutes(0,0,0);
     lastLogTime.setMinutes(0,0,0);
     
     const allHoursData = [];
-    let currentCount = 0;
     
     for (let d = new Date(firstLogTime); d <= lastLogTime; d.setHours(d.getHours() + 1)) {
         const hourKey = `${new Date(d).getHours().toString().padStart(2, '0')}:00`;
-        currentCount += (drinksByHour[hourKey] || 0);
         allHoursData.push({
             time: hourKey,
             count: drinksByHour[hourKey] || 0,
@@ -258,28 +255,26 @@ export default function Home() {
 
   const playSound = useCallback((soundName: string) => {
     if (soundName === 'silencioso' || !audioRef.current) return;
-
     const audio = audioRef.current;
-    const newSrc = `/${soundName}.mp3`;
-
-    // Only change source if it's different to avoid re-loading
-    if (!audio.src.endsWith(newSrc)) {
-      audio.src = newSrc;
-    }
-    
-    // Play after ensuring it's loaded and user has interacted
-    audio.load(); // Required to load the new source
+    audio.src = `/${soundName}.mp3`;
+    audio.load();
     const playPromise = audio.play();
     if (playPromise !== undefined) {
       playPromise.catch(error => {
-        // Autoplay was prevented. This is common before a user interaction.
         console.error("Audio playback failed:", error);
-        toast({
-            title: "Erro ao tocar o som",
-            description: "A reprodução pode ter sido bloqueada pelo navegador. Interaja com a página e tente novamente.",
-            variant: "destructive",
-            duration: 7000
-        });
+        if (error.name === "NotAllowedError") {
+             toast({
+                title: "Reprodução de áudio bloqueada",
+                description: "A interação do usuário é necessária para reproduzir o som.",
+                variant: "destructive",
+             });
+        } else {
+            toast({
+                title: "Erro ao carregar o som",
+                description: "Não foi possível encontrar o arquivo de áudio.",
+                variant: "destructive",
+            });
+        }
       });
     }
   }, [toast]);
@@ -290,10 +285,8 @@ export default function Home() {
 
   useEffect(() => {
     setIsMounted(true);
-    // Ensure the audio element is created on the client
-    if (typeof window !== 'undefined' && !audioRef.current) {
-        audioRef.current = new Audio();
-    }
+    audioRef.current = new Audio();
+    
     const savedSettings = localStorage.getItem('waterful_settings');
     const savedLogs = localStorage.getItem('waterful_logs');
     if (savedSettings) {
@@ -342,7 +335,7 @@ export default function Home() {
       });
     }
   }, [toast]);
-
+  
   const handleQuickSchedule = useCallback((interval: number) => {
     setSettings(s => ({ ...s, interval }));
     toast({
@@ -534,7 +527,7 @@ export default function Home() {
                   </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="w-full aspect-video min-h-0">
+                <div className="w-full h-[250px] min-h-0">
                   <HydrationChart data={drinkLogs} interval={settings.interval} />
                 </div>
               </CardContent>
