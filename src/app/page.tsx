@@ -69,15 +69,25 @@ const AppSkeleton = () => (
 );
 
 
-const SettingsPanel = ({ settings, setSettings, handleQuickSchedule }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void }) => {
-    const audioRef = useRef<HTMLAudioElement>(null);
+const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, toast }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, toast: any }) => {
+    const audioRef = useRef<HTMLAudioElement | null>(null);
 
     const handleSoundChange = (soundFile: string) => {
         setSettings(s => ({ ...s, sound: soundFile }));
+        
         if (audioRef.current) {
             audioRef.current.src = `/${soundFile}`;
-            audioRef.current.play().catch(e => console.error("Audio playback failed:", e));
+            audioRef.current.load();
+            audioRef.current.oncanplaythrough = () => {
+                audioRef.current?.play().catch(e => console.error("Audio playback failed:", e));
+            };
         }
+
+        toast({
+            title: "Som de Alerta Atualizado!",
+            description: `O som foi alterado para "${soundFile.split('.')[0]}".`,
+            duration: 3000,
+        });
     };
     
     return (
@@ -348,12 +358,12 @@ export default function Home() {
     <div className="flex h-screen font-body bg-background">
       {/* Sidebar para desktop */}
       <aside className="hidden lg:block w-80 border-r border-border overflow-y-auto">
-        <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} />
+        <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} toast={toast} />
       </aside>
 
       {/* Conteúdo Principal */}
       <main className="flex-1 flex flex-col items-center p-4 md:p-8 overflow-y-auto">
-        <div className="w-full max-w-4xl mx-auto space-y-8">
+        <div className="w-full max-w-4xl mx-auto space-y-6">
           
           <header className="flex items-center justify-between w-full mt-2">
             <div className="flex items-center gap-4">
@@ -372,7 +382,7 @@ export default function Home() {
                       </Button>
                   </SheetTrigger>
                   <SheetContent side="right" className="w-80 p-0">
-                      <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} />
+                      <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} toast={toast} />
                   </SheetContent>
               </Sheet>
             </div>
@@ -418,3 +428,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
