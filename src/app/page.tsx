@@ -110,7 +110,7 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, 
 
                 <div className="space-y-2">
                     <Label className="flex items-center gap-2"><Zap/> Agendamentos Rápidos</Label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(30)} className="flex-1">Trabalho</Button>
                         <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(60)} className="flex-1">Fim de Semana</Button>
                         <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(20)} className="flex-1">Exercício</Button>
@@ -176,34 +176,27 @@ export default function Home() {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const { toast } = useToast();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  useEffect(() => {
-    // Create the audio element on the client side
-    audioRef.current = new Audio();
-  }, []);
-  
   const playSound = useCallback((soundFile: string) => {
-    if (soundFile === 'silencioso' || !audioRef.current) return;
-    
-    const audio = audioRef.current;
-    audio.src = `/${soundFile}.mp3`;
-    audio.load(); 
-    
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(error => {
+    if (soundFile === 'silencioso') return;
+    try {
+      const audio = new Audio(`/${soundFile}.mp3`);
+      audio.play().catch(error => {
         console.error("Audio playback failed:", error);
+        toast({
+            title: "Erro ao tocar o som",
+            description: "Não foi possível reproduzir a pré-visualização do som.",
+            variant: "destructive"
+        })
       });
+    } catch (error) {
+        console.error("Failed to create audio element:", error);
     }
-  }, []);
+  }, [toast]);
   
   const playNotificationSound = useCallback(() => {
-      if (settings.sound !== 'silencioso') {
-        const audio = new Audio(`/${settings.sound}.mp3`);
-        audio.play().catch(e => console.error("Notification sound failed", e));
-      }
-  }, [settings.sound]);
+      playSound(settings.sound);
+  }, [settings.sound, playSound]);
 
   useEffect(() => {
     const savedSettings = localStorage.getItem('waterful_settings');
@@ -426,7 +419,7 @@ export default function Home() {
       <main className="flex-1 flex flex-col items-center p-4 md:p-8 overflow-y-auto">
         <div className="w-full max-w-4xl mx-auto space-y-6">
           
-          <header className="flex items-center justify-between w-full mt-2">
+          <header className="flex items-center justify-between w-full mt-4">
             <div className="flex items-center gap-4">
               <WaterDropIcon className="w-12 h-12 text-primary" />
               <div>
@@ -457,7 +450,7 @@ export default function Home() {
                   </CardDescription>
               </CardHeader>
               <CardContent className="flex items-center justify-center">
-                <div className="w-full aspect-[16/9] min-h-[250px]">
+                <div className="w-full aspect-video min-h-0">
                   {chartData.length > 0 ? (
                     <ChartContainer config={chartConfig} className="w-full h-full">
                       <BarChart data={chartData} accessibilityLayer margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
@@ -491,5 +484,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
