@@ -431,8 +431,8 @@ export default function Home() {
                   </CardDescription>
               </CardHeader>
               <CardContent className="flex items-center justify-center">
+                <ChartContainer config={chartConfig} className="w-full min-h-[250px] aspect-auto">
                   {chartData.length > 0 ? (
-                    <ChartContainer config={chartConfig} className="w-full min-h-[250px] aspect-auto">
                       <BarChart data={chartData} accessibilityLayer margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
                         <CartesianGrid vertical={false} strokeDasharray="3 3" />
                         <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} tickLine={false} axisLine={false} />
@@ -443,14 +443,14 @@ export default function Home() {
                         />
                         <Bar dataKey="drinks" radius={[4, 4, 0, 0]} />
                       </BarChart>
-                    </ChartContainer>
                   ) : (
-                    <div className="flex flex-col items-center justify-center text-center p-8 bg-muted/30 rounded-lg border-2 border-dashed border-border">
+                    <div className="flex flex-col items-center justify-center text-center p-8 bg-muted/30 rounded-lg border-2 border-dashed border-border h-full">
                        <WaterDropIcon className="w-16 h-16 text-muted-foreground/50 mb-4" />
                       <p className="text-lg font-medium text-muted-foreground">Nenhum gole hoje.</p>
                       <p className="text-sm text-muted-foreground">Clique no botão abaixo para registrar sua primeira hidratação do dia!</p>
                     </div>
                   )}
+                </ChartContainer>
               </CardContent>
               <CardFooter className="justify-center">
                 <Button size="lg" className="w-full md:w-auto transform hover:scale-105 transition-transform" onClick={handleLogDrink}>
@@ -463,9 +463,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
-
-    
-
-    
