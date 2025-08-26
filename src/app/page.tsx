@@ -10,11 +10,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from "@/hooks/use-toast"
 import { WaterDropIcon } from '@/components/icons';
-import { Clock, Moon, Sun, Bell, Droplets, Settings, Zap, Menu, Vibrate } from 'lucide-react';
+import { Clock, Moon, Sun, Bell, Droplets, Settings, Zap, Menu, Vibrate, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { cn } from '@/lib/utils';
 
 type DrinkLog = {
   timestamp: number;
@@ -151,7 +152,7 @@ const AppSkeleton = () => (
 );
 
 
-const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, toast }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, playSound: (sound: string) => void, toast: any }) => {
+const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, playSound: (sound: string) => void }) => {
     
     const handleSoundChange = (soundName: string) => {
         setSettings(s => ({ ...s, sound: soundName }));
@@ -250,33 +251,50 @@ export default function Home() {
   const [nextReminder, setNextReminder] = useState<number | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const { toast } = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const playSound = useCallback((soundName: string) => {
     if (soundName === 'silencioso' || !audioRef.current) return;
+    
     const audio = audioRef.current;
-    audio.src = `/${soundName}.mp3`;
-    audio.load();
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(error => {
-        console.error("Audio playback failed:", error);
-        if (error.name === "NotAllowedError") {
-             toast({
-                title: "Reprodução de áudio bloqueada",
-                description: "A interação do usuário é necessária para reproduzir o som.",
-                variant: "destructive",
-             });
+    
+    // Check if the user has interacted with the document
+    if (document.visibilityState !== 'visible') {
+      console.log("Audio playback prevented: page not visible.");
+      return;
+    }
+
+    try {
+        const newSrc = `/${soundName}.mp3`;
+        if (audio.src.endsWith(newSrc)) {
+            audio.currentTime = 0;
         } else {
-            toast({
-                title: "Erro ao carregar o som",
-                description: "Não foi possível encontrar o arquivo de áudio.",
-                variant: "destructive",
+            audio.src = newSrc;
+        }
+
+        const playPromise = audio.play();
+
+        if (playPromise !== undefined) {
+            playPromise.then(_ => {
+                // Automatic playback started!
+            }).catch(error => {
+                // Auto-play was prevented
+                console.error("Audio playback failed:", error);
+                 if (error.name === "NotAllowedError") {
+                    toast({
+                        title: "Reprodução de áudio bloqueada",
+                        description: "A interação do navegador é necessária para reproduzir o som.",
+                        variant: "destructive",
+                    });
+                }
             });
         }
-      });
+    } catch(e) {
+        console.error("Error playing sound", e)
     }
+
   }, [toast]);
   
   const playNotificationSound = useCallback(() => {
@@ -285,15 +303,22 @@ export default function Home() {
 
   useEffect(() => {
     setIsMounted(true);
-    audioRef.current = new Audio();
-    
-    const savedSettings = localStorage.getItem('waterful_settings');
-    const savedLogs = localStorage.getItem('waterful_logs');
-    if (savedSettings) {
-      setSettings(JSON.parse(savedSettings));
+    // Move audio element creation here to ensure it's available
+    if (!audioRef.current) {
+        audioRef.current = new Audio();
     }
-    if (savedLogs) {
-      setDrinkLogs(JSON.parse(savedLogs));
+    
+    try {
+      const savedSettings = localStorage.getItem('waterful_settings');
+      const savedLogs = localStorage.getItem('waterful_logs');
+      if (savedSettings) {
+        setSettings(JSON.parse(savedSettings));
+      }
+      if (savedLogs) {
+        setDrinkLogs(JSON.parse(savedLogs));
+      }
+    } catch (error) {
+      console.error("Failed to parse from localStorage", error);
     }
   }, []);
 
@@ -488,12 +513,26 @@ export default function Home() {
   return (
     <div className="flex h-screen font-body bg-background">
       {/* Sidebar para desktop */}
-      <aside className="hidden lg:block w-80 border-r border-border overflow-y-auto">
-        <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} toast={toast} />
+       <aside className={cn(
+        "hidden lg:block w-80 border-r border-border overflow-y-auto transition-all duration-300 ease-in-out",
+        !isSidebarVisible && "-ml-80"
+      )}>
+        <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} />
       </aside>
 
       {/* Conteúdo Principal */}
-      <main className="flex-1 flex flex-col items-center p-4 md:p-8 overflow-y-auto">
+      <main className="flex-1 flex flex-col items-center p-4 md:p-8 overflow-y-auto relative">
+         <div className="hidden lg:block">
+            <Button
+                onClick={() => setIsSidebarVisible(!isSidebarVisible)}
+                variant="ghost"
+                size="icon"
+                className="absolute top-4 left-4 h-10 w-10 rounded-full bg-primary/20 text-primary-foreground backdrop-blur-sm hover:bg-primary/30"
+            >
+                {isSidebarVisible ? <ChevronLeft className="h-6 w-6" /> : <ChevronRight className="h-6 w-6" />}
+            </Button>
+        </div>
+
         <div className="w-full max-w-4xl mx-auto space-y-6">
           
           <header className="flex items-center justify-between w-full mt-4">
@@ -513,7 +552,7 @@ export default function Home() {
                       </Button>
                   </SheetTrigger>
                   <SheetContent side="right" className="w-80 p-0">
-                      <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} toast={toast} />
+                      <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} />
                   </SheetContent>
               </Sheet>
             </div>
@@ -527,7 +566,7 @@ export default function Home() {
                   </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="w-full h-[250px] min-h-0">
+                <div className="w-full h-[250px]">
                   <HydrationChart data={drinkLogs} interval={settings.interval} />
                 </div>
               </CardContent>
@@ -543,3 +582,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
