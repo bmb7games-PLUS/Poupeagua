@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from "@/hooks/use-toast"
-import { WaterDropIcon, FuturisticGlassIcon } from '@/components/icons';
+import { WaterDropIcon, GlassOfWaterIcon } from '@/components/icons';
 import { Clock, Moon, Sun, Bell, Droplets, Settings, Zap, Menu, Vibrate } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -58,20 +58,15 @@ const WaterGlass = ({
     <div className="flex flex-col items-center justify-center text-center p-8 bg-muted/30 rounded-lg border-2 border-dashed border-border h-full relative overflow-hidden">
         <>
           <div className="relative w-48 h-64 text-slate-700">
-            <FuturisticGlassIcon className="w-full h-full" />
+            <GlassOfWaterIcon className="w-full h-full" />
             <div
-              className="absolute bottom-[10px] left-1/2 -translate-x-1/2 w-[80%] h-[90%] bg-blue-400/50 transition-all duration-1000 ease-linear"
+              className="absolute bottom-[10px] left-1/2 -translate-x-1/2 w-[80%] bg-blue-400/50 transition-all duration-1000 ease-linear"
               style={{
                 height: `calc(${fillPercentage * 0.9}%)`,
-                borderBottomLeftRadius: '25px',
-                borderBottomRightRadius: '25px',
+                borderBottomLeftRadius: '5px',
+                borderBottomRightRadius: '5px',
               }}
             >
-              {fillPercentage > 0 && (
-                <div className="absolute -bottom-1 left-0 w-full h-4">
-                    <div className="wave-bg"></div>
-                </div>
-              )}
             </div>
              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white text-3xl font-bold z-10 drop-shadow-md">
                 {fillPercentage > 10 ? `${Math.round(fillPercentage)}%` : ""}
@@ -512,7 +507,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
-
-    

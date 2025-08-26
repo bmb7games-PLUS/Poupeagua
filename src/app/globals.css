@@ -90,24 +90,3 @@
     background-position: 0% 50%;
   }
 }
-
-.wave-bg {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 200%;
-  height: 100%;
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 100" preserveAspectRatio="none"><path d="M 0 50 Q 100 20, 200 50 T 400 50 T 600 50 T 800 50 V 100 H 0 Z" fill="%2360a5fa" fill-opacity="0.8"></path></svg>');
-  background-size: 50% 100%;
-  animation: wave 3s cubic-bezier(0.36, 0.45, 0.63, 0.53) infinite;
-  transform: translate3d(0, 0, 0);
-}
-
-@keyframes wave {
-    0% {
-        margin-left: 0;
-    }
-    100% {
-        margin-left: -100%;
-    }
-}

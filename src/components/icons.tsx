@@ -15,17 +15,17 @@ export const WaterDropIcon = (props: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-export const FuturisticGlassIcon = (props: SVGProps<SVGSVGElement>) => (
+export const GlassOfWaterIcon = (props: SVGProps<SVGSVGElement>) => (
     <svg 
-        viewBox="0 0 120 210" 
+        viewBox="0 0 100 100" 
         fill="none" 
         xmlns="http://www.w3.org/2000/svg"
         stroke="currentColor"
         {...props}
     >
         <path 
-            d="M10 10 H110 L95 200 A10 10 0 0 1 85 210 H35 A10 10 0 0 1 25 200 Z" 
-            strokeWidth="5" 
+            d="M15 5 H85 L80 95 H20 Z" 
+            strokeWidth="4" 
             stroke="hsl(var(--primary))" 
             fill="hsl(var(--primary) / 0.1)"
         />
