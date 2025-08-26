@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -69,8 +69,20 @@ const AppSkeleton = () => (
 );
 
 
-const SettingsPanel = ({ settings, setSettings, handleQuickSchedule }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void }) => (
+const SettingsPanel = ({ settings, setSettings, handleQuickSchedule }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void }) => {
+    const audioRef = useRef<HTMLAudioElement>(null);
+
+    const handleSoundChange = (soundFile: string) => {
+        setSettings(s => ({ ...s, sound: soundFile }));
+        if (audioRef.current) {
+            audioRef.current.src = `/${soundFile}`;
+            audioRef.current.play().catch(e => console.error("Audio playback failed:", e));
+        }
+    };
+    
+    return (
     <div className="space-y-6 p-4">
+        <audio ref={audioRef} preload="auto" />
         <div>
             <h3 className="text-lg font-medium flex items-center gap-2 mb-4"><Settings className="text-accent" /> Configurações</h3>
             <div className="space-y-6">
@@ -105,7 +117,7 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule }: { setting
                     <Label htmlFor="sound" className="flex items-center gap-2"><Bell /> Som de Alerta</Label>
                     <Select
                         value={settings.sound}
-                        onValueChange={value => setSettings(s => ({ ...s, sound: value }))}
+                        onValueChange={handleSoundChange}
                     >
                         <SelectTrigger id="sound"><SelectValue placeholder="Selecione o som" /></SelectTrigger>
                         <SelectContent>
@@ -144,7 +156,7 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule }: { setting
           {settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes"}
         </Button>
     </div>
-);
+)};
 
 
 export default function Home() {
@@ -244,11 +256,12 @@ export default function Home() {
           }
 
           if (Notification.permission === 'granted') {
+            const audio = new Audio(`/${settings.sound}`);
+            audio.play().catch(e => console.error("Audio playback failed:", e));
             new Notification('Waterful: Hora de beber água! 💧', {
               body: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
               icon: '/icon.png',
-              silent: false,
-              sound: settings.sound,
+              silent: true, // we play our own sound
             });
           }
           const nextReminderTime = Date.now() + settings.interval * 60 * 1000;
@@ -405,3 +418,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
