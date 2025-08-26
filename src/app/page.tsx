@@ -9,10 +9,12 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from "@/hooks/use-toast"
-import { WaterDropIcon, GlassOfWaterIcon } from '@/components/icons';
+import { WaterDropIcon } from '@/components/icons';
 import { Clock, Moon, Sun, Bell, Droplets, Settings, Zap, Menu, Vibrate } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 type DrinkLog = {
   timestamp: number;
@@ -38,48 +40,56 @@ const DEFAULT_SETTINGS: Settings = {
   vibrate: true,
 };
 
-const WaterGlass = ({
-  timeRemaining,
-  totalInterval,
-  isReminderActive,
-}: {
-  timeRemaining: number | null;
-  totalInterval: number;
-  isReminderActive: boolean;
-}) => {
-  const fillPercentage = useMemo(() => {
-    if (!isReminderActive || timeRemaining === null || totalInterval === 0) {
-      return 0; // Empty if reminders are off or no time data
-    }
-    return Math.max(0, (timeRemaining / (totalInterval * 60 * 1000)) * 100);
-  }, [timeRemaining, totalInterval, isReminderActive]);
+const HydrationChart = ({ data }: { data: DrinkLog[] }) => {
+  const chartData = useMemo(() => {
+    return data.map((log, index) => ({
+      time: new Date(log.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      count: index + 1,
+    }));
+  }, [data]);
+  
+  const chartConfig = {
+    drinks: {
+      label: "Bebidas",
+      color: "hsl(var(--chart-1))",
+    },
+  };
+
+  if (chartData.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center text-center p-8 bg-muted/30 rounded-lg border-2 border-dashed border-border h-full">
+        <p className="text-lg font-medium text-muted-foreground mt-4">Nenhuma bebida registrada ainda.</p>
+        <p className="text-sm text-muted-foreground">Clique em "Já bebi água!" para começar.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col items-center justify-center text-center p-8 bg-muted/30 rounded-lg border-2 border-dashed border-border h-full relative overflow-hidden">
-        <>
-          <div className="relative w-48 h-64 text-slate-700">
-            <GlassOfWaterIcon className="w-full h-full" />
-            <div
-              className="absolute bottom-[8px] left-1/2 -translate-x-1/2 w-[76%] bg-blue-400/50 transition-all duration-1000 ease-linear"
-              style={{
-                height: `calc(${fillPercentage * 0.88}%)`,
-                borderBottomLeftRadius: '5px',
-                borderBottomRightRadius: '5px',
-              }}
-            >
-            </div>
-             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white text-3xl font-bold z-10 drop-shadow-md">
-                {fillPercentage > 10 ? `${Math.round(fillPercentage)}%` : ""}
-              </div>
-          </div>
-          {isReminderActive ? (
-             <p className="text-lg font-medium text-muted-foreground mt-4">Tempo para o próximo gole.</p>
-          ) : (
-             <p className="text-lg font-medium text-muted-foreground mt-4">Inicie os lembretes para começar.</p>
-          )}
-
-        </>
-    </div>
+    <ChartContainer config={chartConfig} className="w-full h-full">
+        <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={chartData} margin={{ top: 20, right: 20, left: -10, bottom: 0 }}>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                <XAxis 
+                    dataKey="time" 
+                    tickLine={false} 
+                    axisLine={false}
+                    tickMargin={8}
+                    />
+                <YAxis 
+                    allowDecimals={false} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tickMargin={8}
+                    domain={[0, 'dataMax + 2']}
+                />
+                 <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent indicator="line" />}
+                />
+                <Bar dataKey="count" fill="var(--color-drinks)" radius={4} />
+            </BarChart>
+        </ResponsiveContainer>
+    </ChartContainer>
   );
 };
 
@@ -212,31 +222,38 @@ export default function Home() {
 
   const playSound = useCallback((soundName: string) => {
     if (soundName === 'silencioso' || typeof window === 'undefined') return;
-  
-    const audio = audioRef.current;
-    if (!audio) {
-      toast({
-        title: "Erro de áudio",
-        description: "O player de áudio não foi encontrado.",
-        variant: "destructive",
-      });
-      return;
-    }
-  
-    audio.src = `/${soundName}.mp3`;
-    audio.load();
     
+    if (!audioRef.current) {
+        console.error("Audio element not ready.");
+        toast({
+            title: "Erro de áudio",
+            description: "O player de áudio não foi inicializado.",
+            variant: "destructive",
+        });
+        return;
+    }
+
+    const audio = audioRef.current;
+    
+    // Set the source and load it
+    if (audio.src !== `/${soundName}.mp3`) {
+        audio.src = `/${soundName}.mp3`;
+        audio.load(); // Pre-loads the audio
+    }
+
+    // Play after user interaction
     const playPromise = audio.play();
     if (playPromise !== undefined) {
-      playPromise.catch(error => {
-        console.error("Audio playback failed:", error);
-        toast({
-          title: "Erro ao tocar o som",
-          description: "A reprodução pode ter sido bloqueada pelo navegador. Interaja com a página e tente novamente.",
-          variant: "destructive",
-          duration: 7000
+        playPromise.catch(error => {
+            console.error("Audio playback failed:", error);
+            // This error often happens if the user hasn't interacted with the page first.
+            toast({
+                title: "Erro ao tocar o som",
+                description: "A reprodução pode ter sido bloqueada pelo navegador. Interaja com a página e tente novamente.",
+                variant: "destructive",
+                duration: 7000
+            });
         });
-      });
     }
   }, [toast]);
   
@@ -246,6 +263,10 @@ export default function Home() {
 
   useEffect(() => {
     setIsMounted(true);
+    // Ensure the audio element is created on the client
+    if (typeof window !== 'undefined' && !audioRef.current) {
+        audioRef.current = new Audio();
+    }
     const savedSettings = localStorage.getItem('waterful_settings');
     const savedLogs = localStorage.getItem('waterful_logs');
     if (savedSettings) {
@@ -433,11 +454,11 @@ export default function Home() {
     }
 
     const formattedTime = formatTimeRemaining(timeRemaining);
-    if (formattedTime) {
+    if (formattedTime !== "00:00") {
       return `Próximo lembrete em: ${formattedTime}`;
     }
 
-    return "Clique em 'Já bebi água!' para iniciar.";
+    return "Clique em 'Já bebi água!' para reiniciar.";
   }
   
   if (!isMounted) {
@@ -487,11 +508,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <div className="w-full aspect-video min-h-0">
-                  <WaterGlass 
-                    timeRemaining={timeRemaining}
-                    totalInterval={settings.interval}
-                    isReminderActive={settings.isReminderActive}
-                  />
+                  <HydrationChart data={drinkLogs} />
                 </div>
               </CardContent>
               <CardFooter className="justify-center">
