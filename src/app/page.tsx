@@ -38,43 +38,52 @@ const DEFAULT_SETTINGS: Settings = {
   vibrate: true,
 };
 
-const DAILY_GOAL = 8; // Meta de 8 copos por dia
-
-const WaterGlass = ({ drinksToday }: { drinksToday: number }) => {
-  const fillPercentage = Math.min((drinksToday / DAILY_GOAL) * 100, 100);
+const WaterGlass = ({
+  timeRemaining,
+  totalInterval,
+  isReminderActive,
+}: {
+  timeRemaining: number | null;
+  totalInterval: number;
+  isReminderActive: boolean;
+}) => {
+  const fillPercentage = useMemo(() => {
+    if (!isReminderActive || timeRemaining === null || totalInterval === 0) {
+      return 0; // Empty if reminders are off or no time data
+    }
+    return Math.max(0, (timeRemaining / (totalInterval * 60 * 1000)) * 100);
+  }, [timeRemaining, totalInterval, isReminderActive]);
 
   return (
     <div className="flex flex-col items-center justify-center text-center p-8 bg-muted/30 rounded-lg border-2 border-dashed border-border h-full relative overflow-hidden">
-      {drinksToday > 0 ? (
         <>
           <div className="relative w-48 h-64 text-slate-700">
             <FuturisticGlassIcon className="w-full h-full" />
             <div
-              className="absolute bottom-[10px] left-1/2 -translate-x-1/2 w-[80%] h-[90%] bg-blue-400/50 transition-all duration-1000 ease-in-out"
+              className="absolute bottom-[10px] left-1/2 -translate-x-1/2 w-[80%] h-[90%] bg-blue-400/50 transition-all duration-1000 ease-linear"
               style={{
                 height: `calc(${fillPercentage * 0.9}%)`,
                 borderBottomLeftRadius: '25px',
                 borderBottomRightRadius: '25px',
               }}
             >
-              <div className="absolute -bottom-1 left-0 w-full h-4">
-                  <div className="wave-bg"></div>
-              </div>
+              {fillPercentage > 0 && (
+                <div className="absolute -bottom-1 left-0 w-full h-4">
+                    <div className="wave-bg"></div>
+                </div>
+              )}
             </div>
-             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white text-3xl font-bold z-10">
-                {drinksToday}/{DAILY_GOAL}
+             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white text-3xl font-bold z-10 drop-shadow-md">
+                {fillPercentage > 10 ? `${Math.round(fillPercentage)}%` : ""}
               </div>
           </div>
-          <p className="text-lg font-medium text-muted-foreground mt-4">Você bebeu {drinksToday} de {DAILY_GOAL} copos hoje.</p>
-          {fillPercentage >= 100 && <p className="text-accent font-bold">Meta atingida! Parabéns!</p>}
+          {isReminderActive ? (
+             <p className="text-lg font-medium text-muted-foreground mt-4">Tempo para o próximo gole.</p>
+          ) : (
+             <p className="text-lg font-medium text-muted-foreground mt-4">Inicie os lembretes para começar.</p>
+          )}
+
         </>
-      ) : (
-        <>
-          <WaterDropIcon className="w-16 h-16 text-muted-foreground/50 mb-4" />
-          <p className="text-lg font-medium text-muted-foreground">Nenhum gole hoje.</p>
-          <p className="text-sm text-muted-foreground">Clique no botão abaixo para registrar sua primeira hidratação do dia!</p>
-        </>
-      )}
     </div>
   );
 };
@@ -111,11 +120,6 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, 
         if (soundName !== 'silencioso') {
             playSound(soundName);
         }
-        toast({
-            title: "Som de Alerta Atualizado!",
-            description: `O som foi alterado para "${soundName}".`,
-            duration: 3000,
-        });
     };
     
     return (
@@ -212,24 +216,26 @@ export default function Home() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const playSound = useCallback((soundName: string) => {
-    if (soundName === 'silencioso' || !audioRef.current) return;
+    if (soundName === 'silencioso' || typeof window === 'undefined') return;
+  
+    if (!audioRef.current) {
+        console.error("Audio element not found");
+        return;
+    }
   
     const audio = audioRef.current;
     audio.src = `/${soundName}.mp3`;
-  
-    audio.load(); // Garante que a nova fonte seja carregada
-  
+    audio.load();
+    
     const playPromise = audio.play();
-  
     if (playPromise !== undefined) {
       playPromise.catch(error => {
-        // Erro comum: a interação do usuário foi perdida.
-        // Isso é uma proteção do navegador.
         console.error("Audio playback failed:", error);
         toast({
           title: "Erro ao tocar o som",
-          description: "A reprodução pode ter sido bloqueada pelo navegador. Tente interagir com a página novamente.",
-          variant: "destructive"
+          description: "A reprodução pode ter sido bloqueada pelo navegador.",
+          variant: "destructive",
+          duration: 5000
         });
       });
     }
@@ -264,14 +270,17 @@ export default function Home() {
   }, [drinkLogs, isMounted]);
   
   const handleLogDrink = useCallback(() => {
-    setDrinkLogs(prev => [...prev, { timestamp: Date.now() }]);
+    const now = Date.now();
+    setDrinkLogs(prev => [...prev, { timestamp: now }]);
     toast({
       title: "Hidratação Registrada!",
-      description: "Excelente! Continue assim para um dia mais saudável.",
+      description: "Excelente! O cronômetro foi reiniciado.",
       duration: 3000,
     });
     if (settings.isReminderActive) {
-      setNextReminder(Date.now() + settings.interval * 60 * 1000);
+        const nextReminderTime = now + settings.interval * 60 * 1000;
+        setNextReminder(nextReminderTime);
+        setTimeRemaining(settings.interval * 60 * 1000);
     }
   }, [settings.isReminderActive, settings.interval, toast]);
 
@@ -288,90 +297,81 @@ export default function Home() {
   }, [toast]);
     
   useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null;
-    let nextReminderTimeout: NodeJS.Timeout | null = null;
-    
+    let reminderInterval: NodeJS.Timeout | null = null;
+
+    const scheduleNextReminder = () => {
+        const now = new Date();
+        
+        if (settings.respectSleepTime) {
+          const [sleepH, sleepM] = settings.sleepTime.split(':').map(Number);
+          const [wakeH, wakeM] = settings.wakeTime.split(':').map(Number);
+          const currentMinutes = now.getHours() * 60 + now.getMinutes();
+          const sleepMinutes = sleepH * 60 + sleepM;
+          const wakeMinutes = wakeH * 60 + wakeM;
+
+          let isSleepTime = false;
+          if (sleepMinutes > wakeMinutes) { // Overnight sleep
+              if (currentMinutes >= sleepMinutes || currentMinutes < wakeMinutes) isSleepTime = true;
+          } else { // Same day sleep
+              if (currentMinutes >= sleepMinutes && currentMinutes < wakeMinutes) isSleepTime = true;
+          }
+
+          if (isSleepTime) {
+            const nextWakeTime = new Date();
+            nextWakeTime.setHours(wakeH, wakeM, 0, 0);
+            if(now.getTime() > nextWakeTime.getTime()){
+               nextWakeTime.setDate(nextWakeTime.getDate() + 1);
+            }
+             setNextReminder(nextWakeTime.getTime());
+             return; 
+          }
+        }
+
+        // Play sound and show notification
+        if (Notification.permission === 'granted') {
+          playNotificationSound();
+          
+          const notificationOptions: NotificationOptions = {
+            body: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
+            icon: '/icon.png',
+            silent: settings.sound === 'silencioso',
+          };
+          if (settings.vibrate && 'vibrate' in navigator) {
+              notificationOptions.vibrate = [200, 100, 200];
+          }
+          new Notification('Waterful: Hora de beber água! 💧', notificationOptions);
+        }
+
+        // Set next reminder time
+        const nextReminderTime = Date.now() + settings.interval * 60 * 1000;
+        setNextReminder(nextReminderTime);
+    };
+
     if (settings.isReminderActive) {
       requestNotificationPermission();
 
-      const scheduleNextReminder = () => {
-          const now = new Date();
-          
-          if (settings.respectSleepTime) {
-            const [sleepH, sleepM] = settings.sleepTime.split(':').map(Number);
-            const [wakeH, wakeM] = settings.wakeTime.split(':').map(Number);
-            const currentMinutes = now.getHours() * 60 + now.getMinutes();
-            const sleepMinutes = sleepH * 60 + sleepM;
-            const wakeMinutes = wakeH * 60 + wakeM;
+      const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : Date.now();
+      const timeSinceLastDrink = Date.now() - lastDrinkTime;
+      const initialDelay = Math.max(0, (settings.interval * 60 * 1000) - timeSinceLastDrink);
+      
+      const timeoutId = setTimeout(() => {
+        scheduleNextReminder();
+        reminderInterval = setInterval(scheduleNextReminder, settings.interval * 60 * 1000);
+      }, initialDelay);
+      
+      setNextReminder(Date.now() + initialDelay);
 
-            let isSleepTime = false;
-            if (sleepMinutes > wakeMinutes) { // Overnight sleep
-                if (currentMinutes >= sleepMinutes || currentMinutes < wakeMinutes) {
-                    isSleepTime = true;
-                }
-            } else { // Same day sleep
-                if (currentMinutes >= sleepMinutes && currentMinutes < wakeMinutes) {
-                    isSleepTime = true;
-                }
-            }
-
-            if (isSleepTime) {
-              const nextWakeTime = new Date();
-              nextWakeTime.setHours(wakeH, wakeM, 0, 0);
-              if(now.getTime() > nextWakeTime.getTime()){
-                 nextWakeTime.setDate(nextWakeTime.getDate() + 1);
-              }
-               setNextReminder(nextWakeTime.getTime());
-               return; 
-            }
-          }
-
-          if (Notification.permission === 'granted') {
-            playNotificationSound();
-            
-            const notificationOptions: NotificationOptions = {
-              body: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
-              icon: '/icon.png',
-              silent: settings.sound === 'silencioso',
-            };
-            if (settings.vibrate && 'vibrate' in navigator) {
-                notificationOptions.vibrate = [200, 100, 200];
-            }
-            new Notification('Waterful: Hora de beber água! 💧', notificationOptions);
-          }
-          const nextReminderTime = Date.now() + settings.interval * 60 * 1000;
-          setNextReminder(nextReminderTime);
+      return () => {
+        clearTimeout(timeoutId);
+        if (reminderInterval) clearInterval(reminderInterval);
       };
-      
-      const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : null;
-      
-      // If there are no logs, and reminders are active, schedule the first reminder immediately.
-      if (!lastDrinkTime) {
-          const initialDelay = settings.interval * 60 * 1000;
-          setNextReminder(Date.now() + initialDelay);
-          nextReminderTimeout = setTimeout(() => {
-            scheduleNextReminder();
-            intervalId = setInterval(scheduleNextReminder, settings.interval * 60 * 1000);
-          }, initialDelay);
-      } else {
-        const timeSinceLastDrink = Date.now() - lastDrinkTime;
-        const initialDelay = Math.max(0, (settings.interval * 60 * 1000) - timeSinceLastDrink);
-
-        setNextReminder(Date.now() + initialDelay);
-
-        nextReminderTimeout = setTimeout(() => {
-          scheduleNextReminder();
-          intervalId = setInterval(scheduleNextReminder, settings.interval * 60 * 1000);
-        }, initialDelay);
-      }
-
     } else {
       setNextReminder(null);
+      setTimeRemaining(null);
     }
 
     return () => {
-      if (intervalId) clearInterval(intervalId);
-      if (nextReminderTimeout) clearTimeout(nextReminderTimeout);
+      if (reminderInterval) clearInterval(reminderInterval);
     };
   }, [settings, requestNotificationPermission, drinkLogs, playNotificationSound]);
 
@@ -393,20 +393,9 @@ export default function Home() {
     };
   }, [nextReminder, settings.isReminderActive]);
   
-  const todayLogs = useMemo(() => {
-    return drinkLogs.filter(log => new Date(log.timestamp).toDateString() === new Date().toDateString());
-  }, [drinkLogs]);
-
-
-  const handleQuickSchedule = (interval: number) => {
-    setSettings(s => ({ ...s, interval, isReminderActive: true }));
-    toast({ title: "Agendamento rápido ativado!", description: `Lembretes a cada ${interval} minutos.` });
-    setIsSheetOpen(false); // Fecha a sheet no mobile
-  };
-
   const formatTimeRemaining = (ms: number | null) => {
-    if (ms === null || ms < 0) { // Changed to < 0 to handle small negative values
-      return null;
+    if (ms === null || ms <= 0) {
+      return "00:00";
     }
     const totalSeconds = Math.floor(ms / 1000);
     const minutes = Math.floor(totalSeconds / 60);
@@ -491,7 +480,11 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <div className="w-full aspect-video min-h-0">
-                  <WaterGlass drinksToday={todayLogs.length} />
+                  <WaterGlass 
+                    timeRemaining={timeRemaining}
+                    totalInterval={settings.interval}
+                    isReminderActive={settings.isReminderActive}
+                  />
                 </div>
               </CardContent>
               <CardFooter className="justify-center">
@@ -506,3 +499,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
