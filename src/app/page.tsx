@@ -184,17 +184,18 @@ export default function Home() {
     const audio = audioRef.current;
     audio.src = `/${soundFile}.mp3`;
     audio.load();
-    audio.play().catch(error => {
-      console.error("Audio playback failed:", error);
-      // O erro de "não foi possível encontrar" pode ser mascarado por políticas do navegador.
-      // A maioria dos navegadores modernos exige uma interação do usuário para reproduzir áudio.
-      // O clique no seletor de som conta como uma interação.
-      toast({
-          title: "Erro ao tocar o som",
-          description: "A reprodução pode ter sido bloqueada pelo navegador.",
-          variant: "destructive"
+    const playPromise = audio.play();
+
+    if (playPromise !== undefined) {
+      playPromise.catch(error => {
+        console.error("Audio playback failed:", error);
+        toast({
+            title: "Erro ao tocar o som",
+            description: "A reprodução pode ter sido bloqueada pelo navegador.",
+            variant: "destructive"
+        });
       });
-    });
+    }
   }, [toast]);
   
   const playNotificationSound = useCallback(() => {
@@ -462,7 +463,7 @@ export default function Home() {
                     {getNextReminderMessage()}
                   </CardDescription>
               </CardHeader>
-              <CardContent className="flex items-center justify-center">
+              <CardContent>
                 <div className="w-full aspect-video min-h-0">
                   {chartData.length > 0 ? (
                     <ChartContainer config={chartConfig} className="w-full h-full">
