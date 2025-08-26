@@ -352,10 +352,10 @@ export default function Home() {
       </aside>
 
       {/* Conteúdo Principal */}
-      <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8">
+      <main className="flex-1 flex flex-col items-center justify-start p-4 md:p-8">
         <div className="w-full max-w-4xl mx-auto space-y-8 flex-1 flex flex-col">
           
-          <header className="flex items-center justify-between w-full">
+          <header className="flex items-center justify-between w-full mt-8">
             <div className="flex items-center gap-4">
               <WaterDropIcon className="w-12 h-12 text-primary" />
               <div>
@@ -418,5 +418,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
