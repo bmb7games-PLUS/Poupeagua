@@ -73,11 +73,16 @@ const AppSkeleton = () => (
 
 const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, toast }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, toast: any }) => {
     
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
     const playSound = (sound: string) => {
         if (sound === 'silencioso') return;
         try {
-            const audio = new Audio(`/${sound}.mp3`);
-            audio.play().catch(e => console.error("Audio playback failed:", e));
+            if (!audioRef.current) {
+                audioRef.current = new Audio();
+            }
+            audioRef.current.src = `/${sound}.mp3`;
+            audioRef.current.play().catch(e => console.error("Audio playback failed:", e));
         } catch (error) {
             console.error("Failed to play sound:", error)
         }
@@ -185,6 +190,7 @@ export default function Home() {
   const [nextReminder, setNextReminder] = useState<number | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const { toast } = useToast();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const savedSettings = localStorage.getItem('waterful_settings');
@@ -234,25 +240,27 @@ export default function Home() {
       });
     }
   }, [toast]);
+    
+  const playNotificationSound = useCallback(() => {
+      if (settings.sound === 'silencioso') return;
+      try {
+          if (!audioRef.current) {
+              audioRef.current = new Audio();
+          }
+          audioRef.current.src = `/${settings.sound}.mp3`;
+          audioRef.current.play().catch(e => {
+              console.error("Audio playback failed:", e)
+          });
+      } catch(e){
+           console.error("Failed to play notification sound", e);
+      }
+  }, [settings.sound]);
+
 
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
     let nextReminderTimeout: NodeJS.Timeout | null = null;
     
-    const playNotificationSound = () => {
-        if (settings.sound === 'silencioso') return;
-        try {
-            const audio = new Audio(`/${settings.sound}.mp3`);
-            audio.play().catch(e => {
-                console.error("Audio playback failed:", e)
-                // Fallback for browsers that block unsolicited audio
-                // The notification will still appear.
-            });
-        } catch(e){
-             console.error("Failed to play notification sound", e);
-        }
-    }
-
     if (settings.isReminderActive) {
       requestNotificationPermission();
 
@@ -289,9 +297,8 @@ export default function Home() {
           }
 
           if (Notification.permission === 'granted') {
-            if (settings.sound !== 'silencioso') {
-                playNotificationSound();
-            }
+            playNotificationSound();
+            
             const notificationOptions: NotificationOptions = {
               body: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
               icon: '/icon.png',
@@ -326,7 +333,7 @@ export default function Home() {
       if (intervalId) clearInterval(intervalId);
       if (nextReminderTimeout) clearTimeout(nextReminderTimeout);
     };
-  }, [settings, requestNotificationPermission, drinkLogs]);
+  }, [settings, requestNotificationPermission, drinkLogs, playNotificationSound]);
   
   const chartData = useMemo(() => {
     const todayLogs = drinkLogs.filter(log => new Date(log.timestamp).toDateString() === new Date().toDateString());
