@@ -13,7 +13,7 @@ import { WaterDropIcon } from '@/components/icons';
 import { Clock, Moon, Sun, Bell, Droplets, Settings, Zap, Menu, Vibrate } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 type DrinkLog = {
@@ -67,7 +67,7 @@ const HydrationChart = ({ data }: { data: DrinkLog[] }) => {
   return (
     <ChartContainer config={chartConfig} className="w-full h-full">
         <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={chartData} margin={{ top: 20, right: 20, left: -10, bottom: 0 }}>
+            <LineChart data={chartData} margin={{ top: 20, right: 20, left: -10, bottom: 0 }}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                 <XAxis 
                     dataKey="time" 
@@ -86,8 +86,8 @@ const HydrationChart = ({ data }: { data: DrinkLog[] }) => {
                     cursor={false}
                     content={<ChartTooltipContent indicator="line" />}
                 />
-                <Bar dataKey="count" fill="var(--color-drinks)" radius={4} />
-            </BarChart>
+                <Line type="monotone" dataKey="count" stroke="var(--color-drinks)" strokeWidth={2} dot={{r: 4, fill: "var(--color-drinks)"}} activeDot={{r: 6}} />
+            </LineChart>
         </ResponsiveContainer>
     </ChartContainer>
   );
@@ -221,33 +221,25 @@ export default function Home() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const playSound = useCallback((soundName: string) => {
-    if (soundName === 'silencioso' || typeof window === 'undefined') return;
-    
-    if (!audioRef.current) {
-        console.error("Audio element not ready.");
-        toast({
-            title: "Erro de áudio",
-            description: "O player de áudio não foi inicializado.",
-            variant: "destructive",
-        });
-        return;
-    }
+    if (soundName === 'silencioso' || !audioRef.current) return;
 
     const audio = audioRef.current;
-    
-    // Set the source and load it
-    if (audio.src !== `/${soundName}.mp3`) {
-        audio.src = `/${soundName}.mp3`;
-        audio.load(); // Pre-loads the audio
-    }
+    const newSrc = `/${soundName}.mp3`;
 
+    // Only change source if it's different
+    if (audio.src.endsWith(newSrc)) {
+        audio.currentTime = 0; // Rewind
+    } else {
+        audio.src = newSrc;
+    }
+    
     // Play after user interaction
     const playPromise = audio.play();
     if (playPromise !== undefined) {
         playPromise.catch(error => {
             console.error("Audio playback failed:", error);
             // This error often happens if the user hasn't interacted with the page first.
-            toast({
+             toast({
                 title: "Erro ao tocar o som",
                 description: "A reprodução pode ter sido bloqueada pelo navegador. Interaja com a página e tente novamente.",
                 variant: "destructive",
