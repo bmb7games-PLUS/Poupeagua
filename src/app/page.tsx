@@ -60,9 +60,9 @@ const WaterGlass = ({
           <div className="relative w-48 h-64 text-slate-700">
             <GlassOfWaterIcon className="w-full h-full" />
             <div
-              className="absolute bottom-[10px] left-1/2 -translate-x-1/2 w-[80%] bg-blue-400/50 transition-all duration-1000 ease-linear"
+              className="absolute bottom-[8px] left-1/2 -translate-x-1/2 w-[76%] bg-blue-400/50 transition-all duration-1000 ease-linear"
               style={{
-                height: `calc(${fillPercentage * 0.9}%)`,
+                height: `calc(${fillPercentage * 0.88}%)`,
                 borderBottomLeftRadius: '5px',
                 borderBottomRightRadius: '5px',
               }}
@@ -230,7 +230,6 @@ export default function Home() {
     if (playPromise !== undefined) {
       playPromise.catch(error => {
         console.error("Audio playback failed:", error);
-        // This toast is helpful for the user to understand browser limitations
         toast({
           title: "Erro ao tocar o som",
           description: "A reprodução pode ter sido bloqueada pelo navegador. Interaja com a página e tente novamente.",
