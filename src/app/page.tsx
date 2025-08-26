@@ -13,7 +13,7 @@ import { WaterDropIcon } from '@/components/icons';
 import { Clock, Moon, Sun, Bell, Droplets, Settings, Zap, Menu, Vibrate, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Legend } from 'recharts';
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Legend, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -95,7 +95,9 @@ const HydrationChart = ({ data, settings }: { data: DrinkLog[]; settings: Settin
     }
     
     if (allHoursData.length === 0) {
-      return [{ time: "00:00", count: 0, goal: hourlyGoal }];
+      // Create a dummy entry to show the chart axis
+      const startHour = `${wakeH.toString().padStart(2, '0')}:00`;
+      return [{ time: startHour, count: 0, goal: hourlyGoal }];
     }
 
     return allHoursData;
@@ -622,3 +624,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
