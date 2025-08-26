@@ -35,7 +35,7 @@ const DEFAULT_SETTINGS: Settings = {
   respectSleepTime: true,
   sleepTime: "22:00",
   wakeTime: "08:00",
-  sound: "drop.mp3"
+  sound: "drop"
 };
 
 const chartConfig = {
@@ -70,29 +70,28 @@ const AppSkeleton = () => (
 
 
 const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, toast }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, toast: any }) => {
-    const audioRef = useRef<HTMLAudioElement | null>(null);
-
-    const handleSoundChange = (soundFile: string) => {
-        setSettings(s => ({ ...s, sound: soundFile }));
-        
-        if (audioRef.current) {
-            audioRef.current.src = `/${soundFile}`;
-            audioRef.current.load();
-            audioRef.current.oncanplaythrough = () => {
-                audioRef.current?.play().catch(e => console.error("Audio playback failed:", e));
-            };
+    
+    const playSound = (sound: string) => {
+        try {
+            const audio = new Audio(`/${sound}.mp3`);
+            audio.play().catch(e => console.error("Audio playback failed:", e));
+        } catch (error) {
+            console.error("Failed to play sound:", error)
         }
+    }
 
+    const handleSoundChange = (soundName: string) => {
+        setSettings(s => ({ ...s, sound: soundName }));
+        playSound(soundName);
         toast({
             title: "Som de Alerta Atualizado!",
-            description: `O som foi alterado para "${soundFile.split('.')[0]}".`,
+            description: `O som foi alterado para "${soundName}".`,
             duration: 3000,
         });
     };
     
     return (
     <div className="space-y-6 p-4">
-        <audio ref={audioRef} preload="auto" />
         <div>
             <h3 className="text-lg font-medium flex items-center gap-2 mb-4"><Settings className="text-accent" /> Configurações</h3>
             <div className="space-y-6">
@@ -131,9 +130,9 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, toast }: { 
                     >
                         <SelectTrigger id="sound"><SelectValue placeholder="Selecione o som" /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="drop.mp3">Gota</SelectItem>
-                            <SelectItem value="gentle.mp3">Suave</SelectItem>
-                            <SelectItem value="bell.mp3">Sino</SelectItem>
+                            <SelectItem value="drop">Gota</SelectItem>
+                            <SelectItem value="gentle">Suave</SelectItem>
+                            <SelectItem value="bell">Sino</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -229,6 +228,19 @@ export default function Home() {
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
     let nextReminderTimeout: NodeJS.Timeout | null = null;
+    
+    const playNotificationSound = () => {
+        try {
+            const audio = new Audio(`/${settings.sound}.mp3`);
+            audio.play().catch(e => {
+                console.error("Audio playback failed:", e)
+                // Fallback for browsers that block unsolicited audio
+                // The notification will still appear.
+            });
+        } catch(e){
+             console.error("Failed to play notification sound", e);
+        }
+    }
 
     if (settings.isReminderActive) {
       requestNotificationPermission();
@@ -266,12 +278,11 @@ export default function Home() {
           }
 
           if (Notification.permission === 'granted') {
-            const audio = new Audio(`/${settings.sound}`);
-            audio.play().catch(e => console.error("Audio playback failed:", e));
+            playNotificationSound();
             new Notification('Waterful: Hora de beber água! 💧', {
               body: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
               icon: '/icon.png',
-              silent: true, // we play our own sound
+              silent: false, // We let the system handle sound if our own fails
             });
           }
           const nextReminderTime = Date.now() + settings.interval * 60 * 1000;
@@ -428,5 +439,7 @@ export default function Home() {
     </div>
   );
 }
+
+    
 
     
