@@ -173,6 +173,7 @@ export default function Home() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [drinkLogs, setDrinkLogs] = useState<DrinkLog[]>([]);
   const [nextReminder, setNextReminder] = useState<number | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const { toast } = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -187,22 +188,22 @@ export default function Home() {
     
     const audio = audioRef.current;
     audio.src = `/${soundFile}.mp3`;
-    audio.load(); // Important to load the new source
+    audio.load(); 
     
-    // Play after the audio is ready
     const playPromise = audio.play();
     if (playPromise !== undefined) {
       playPromise.catch(error => {
         console.error("Audio playback failed:", error);
-        // This might happen if the user hasn't interacted with the page yet.
-        // We can choose to notify the user or handle it silently.
       });
     }
   }, []);
   
   const playNotificationSound = useCallback(() => {
-      playSound(settings.sound);
-  }, [settings.sound, playSound]);
+      if (settings.sound !== 'silencioso') {
+        const audio = new Audio(`/${settings.sound}.mp3`);
+        audio.play().catch(e => console.error("Notification sound failed", e));
+      }
+  }, [settings.sound]);
 
   useEffect(() => {
     const savedSettings = localStorage.getItem('waterful_settings');
@@ -239,7 +240,6 @@ export default function Home() {
       setNextReminder(Date.now() + settings.interval * 60 * 1000);
     }
   }, [settings.isReminderActive, settings.interval, toast]);
-
 
   const requestNotificationPermission = useCallback(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -288,7 +288,7 @@ export default function Home() {
                  nextWakeTime.setDate(nextWakeTime.getDate() + 1);
               }
                setNextReminder(nextWakeTime.getTime());
-               return; // It's sleep time
+               return; 
             }
           }
 
@@ -316,8 +316,8 @@ export default function Home() {
       setNextReminder(Date.now() + initialDelay);
 
       nextReminderTimeout = setTimeout(() => {
-        scheduleNextReminder(); // First reminder
-        intervalId = setInterval(scheduleNextReminder, settings.interval * 60 * 1000); // Subsequent reminders
+        scheduleNextReminder();
+        intervalId = setInterval(scheduleNextReminder, settings.interval * 60 * 1000);
       }, initialDelay);
 
 
@@ -330,6 +330,24 @@ export default function Home() {
       if (nextReminderTimeout) clearTimeout(nextReminderTimeout);
     };
   }, [settings, requestNotificationPermission, drinkLogs, playNotificationSound]);
+
+   useEffect(() => {
+    let timerId: NodeJS.Timeout | null = null;
+    if (nextReminder && settings.isReminderActive) {
+      timerId = setInterval(() => {
+        const remaining = Math.max(0, nextReminder - Date.now());
+        setTimeRemaining(remaining);
+        if (remaining === 0) {
+           if(timerId) clearInterval(timerId);
+        }
+      }, 1000);
+    } else {
+      setTimeRemaining(null);
+    }
+    return () => {
+      if (timerId) clearInterval(timerId);
+    };
+  }, [nextReminder, settings.isReminderActive]);
   
   const chartData = useMemo(() => {
     const todayLogs = drinkLogs.filter(log => new Date(log.timestamp).toDateString() === new Date().toDateString());
@@ -353,31 +371,44 @@ export default function Home() {
     setIsSheetOpen(false); // Fecha a sheet no mobile
   };
 
+  const formatTimeRemaining = (ms: number | null) => {
+    if (ms === null || ms <= 0) {
+      return null;
+    }
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
   const getNextReminderMessage = () => {
     if (!settings.isReminderActive) {
       return "Os lembretes estão pausados.";
     }
-    if (nextReminder) {
-      const now = new Date();
-      if (settings.respectSleepTime) {
-        const [sleepH, sleepM] = settings.sleepTime.split(':').map(Number);
-        const [wakeH, wakeM] = settings.wakeTime.split(':').map(Number);
-        const currentMinutes = now.getHours() * 60 + now.getMinutes();
-        const sleepMinutes = sleepH * 60 + sleepM;
-        const wakeMinutes = wakeH * 60 + wakeM;
 
-        let isSleepTime = false;
-        if (sleepMinutes > wakeMinutes) { // Overnight
-            if (currentMinutes >= sleepMinutes || currentMinutes < wakeMinutes) isSleepTime = true;
-        } else { // Same day
-            if (currentMinutes >= sleepMinutes && currentMinutes < wakeMinutes) isSleepTime = true;
-        }
-        if(isSleepTime) return `Hora de dormir! Lembretes voltam às ${settings.wakeTime}.`;
+    if (settings.respectSleepTime) {
+      const now = new Date();
+      const [sleepH, sleepM] = settings.sleepTime.split(':').map(Number);
+      const [wakeH, wakeM] = settings.wakeTime.split(':').map(Number);
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const sleepMinutes = sleepH * 60 + sleepM;
+      const wakeMinutes = wakeH * 60 + wakeM;
+
+      let isSleepTime = false;
+      if (sleepMinutes > wakeMinutes) { // Overnight
+          if (currentMinutes >= sleepMinutes || currentMinutes < wakeMinutes) isSleepTime = true;
+      } else { // Same day
+          if (currentMinutes >= sleepMinutes && currentMinutes < wakeMinutes) isSleepTime = true;
       }
-      const diff = Math.round((nextReminder - Date.now()) / 60000);
-      return `Próximo lembrete em ${Math.max(0, diff)} minuto${diff !== 1 ? 's' : ''}.`;
+      if(isSleepTime) return `Hora de dormir! Lembretes voltam às ${settings.wakeTime}.`;
     }
-    return "Calculando próximo lembrete...";
+
+    const formattedTime = formatTimeRemaining(timeRemaining);
+    if (formattedTime) {
+      return `Próximo lembrete em: ${formattedTime}`;
+    }
+
+    return "Clique em 'Já bebi água!' para iniciar.";
   }
   
   if (!isMounted) {
