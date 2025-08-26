@@ -110,7 +110,7 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, 
 
                 <div className="space-y-2">
                     <Label className="flex items-center gap-2"><Zap/> Agendamentos Rápidos</Label>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-nowrap gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(30)} className="flex-1">Trabalho</Button>
                         <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(60)} className="flex-1">Fim de Semana</Button>
                         <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(20)} className="flex-1">Exercício</Button>
@@ -176,19 +176,41 @@ export default function Home() {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const { toast } = useToast();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const playSound = useCallback((soundFile: string) => {
-    if (soundFile === 'silencioso') return;
+    if (soundFile === 'silencioso' || typeof window === 'undefined') return;
+
+    if (audioRef.current) {
+        audioRef.current.pause();
+    }
+    
     try {
-      const audio = new Audio(`/${soundFile}.mp3`);
-      audio.play().catch(error => {
-        console.error("Audio playback failed:", error);
-        toast({
-            title: "Erro ao tocar o som",
-            description: "Não foi possível reproduzir a pré-visualização do som.",
-            variant: "destructive"
-        })
-      });
+        const audio = new Audio(`/${soundFile}.mp3`);
+        audioRef.current = audio;
+        
+        audio.addEventListener('canplaythrough', () => {
+             audio.play().catch(error => {
+                console.error("Audio playback failed after loading:", error);
+                 toast({
+                    title: "Erro ao tocar o som",
+                    description: "A reprodução foi bloqueada pelo navegador.",
+                    variant: "destructive"
+                });
+             });
+        });
+
+        audio.addEventListener('error', (e) => {
+            console.error("Error loading audio:", e);
+            toast({
+                title: "Erro ao carregar o som",
+                description: "Não foi possível encontrar o arquivo de áudio.",
+                variant: "destructive"
+            });
+        });
+
+        audio.load();
+
     } catch (error) {
         console.error("Failed to create audio element:", error);
     }
@@ -484,3 +506,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
