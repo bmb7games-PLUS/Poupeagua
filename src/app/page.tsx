@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { useToast } from "@/hooks/use-toast"
 import { WaterDropIcon } from '@/components/icons';
 import { Clock, Moon, Sun, Bell, Droplets, Settings, Zap } from 'lucide-react';
@@ -36,6 +36,12 @@ const DEFAULT_SETTINGS: Settings = {
   wakeTime: "08:00",
   sound: "drop.mp3"
 };
+
+const chartConfig = {
+  drinks: {
+    label: "Drinks",
+  },
+} satisfies ChartConfig;
 
 const AppSkeleton = () => (
   <div className="flex flex-col items-center justify-center min-h-screen p-4 md:p-8">
@@ -311,18 +317,18 @@ export default function Home() {
                 </CardHeader>
                 <CardContent>
                     {chartData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={chartData}>
+                      <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
+                        <BarChart data={chartData} accessibilityLayer>
                           <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                          <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                          <YAxis allowDecimals={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                          <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} tickLine={false} axisLine={false} />
+                          <YAxis allowDecimals={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} tickLine={false} axisLine={false} />
                           <ChartTooltip
                             cursor={false}
                             content={<ChartTooltipContent labelFormatter={(value) => `Bebidas às ${value}`} />}
                           />
-                          <Bar dataKey="drinks" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="drinks" fill="hsl(var(--primary))" radius={4} />
                         </BarChart>
-                      </ResponsiveContainer>
+                      </ChartContainer>
                     ) : (
                       <div className="flex flex-col items-center justify-center h-[250px] text-center bg-muted/50 rounded-lg">
                         <p className="text-muted-foreground">Nenhum registro de hidratação hoje.</p>
