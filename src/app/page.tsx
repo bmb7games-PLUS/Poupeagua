@@ -13,7 +13,7 @@ import { WaterDropIcon } from '@/components/icons';
 import { Clock, Moon, Sun, Bell, Droplets, Settings, Zap, Menu, Vibrate } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend, ReferenceLine } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
 type DrinkLog = {
@@ -40,22 +40,56 @@ const DEFAULT_SETTINGS: Settings = {
   vibrate: true,
 };
 
-const HydrationChart = ({ data }: { data: DrinkLog[] }) => {
-  const chartData = useMemo(() => {
-    return data.map((log, index) => ({
-      time: new Date(log.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-      count: index + 1,
-    }));
-  }, [data]);
-  
+const HydrationChart = ({ data, interval }: { data: DrinkLog[]; interval: number }) => {
   const chartConfig = {
     drinks: {
       label: "Bebidas",
       color: "hsl(var(--chart-1))",
     },
+    goal: {
+      label: "Meta",
+      color: "hsl(var(--chart-2))",
+    }
   };
 
-  if (chartData.length === 0) {
+  const hourlyGoal = useMemo(() => {
+    if (interval <= 0) return 1;
+    return Math.floor(60 / interval);
+  }, [interval]);
+
+  const chartData = useMemo(() => {
+    if (!data.length) return [];
+    
+    const drinksByHour: { [key: string]: number } = {};
+    data.forEach(log => {
+      const date = new Date(log.timestamp);
+      const hourKey = `${date.getHours().toString().padStart(2, '0')}:00`;
+      drinksByHour[hourKey] = (drinksByHour[hourKey] || 0) + 1;
+    });
+
+    // Create a data point for every hour from the first drink to the last
+    const firstLogTime = new Date(data[0].timestamp);
+    const lastLogTime = new Date(data[data.length - 1].timestamp);
+    firstLogTime.setMinutes(0,0,0);
+    lastLogTime.setMinutes(0,0,0);
+    
+    const allHoursData = [];
+    let currentCount = 0;
+    
+    for (let d = new Date(firstLogTime); d <= lastLogTime; d.setHours(d.getHours() + 1)) {
+        const hourKey = `${new Date(d).getHours().toString().padStart(2, '0')}:00`;
+        currentCount += (drinksByHour[hourKey] || 0);
+        allHoursData.push({
+            time: hourKey,
+            count: drinksByHour[hourKey] || 0,
+            goal: hourlyGoal,
+        });
+    }
+
+    return allHoursData;
+  }, [data, hourlyGoal]);
+
+  if (!chartData || chartData.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center text-center p-8 bg-muted/30 rounded-lg border-2 border-dashed border-border h-full">
         <p className="text-lg font-medium text-muted-foreground mt-4">Nenhuma bebida registrada ainda.</p>
@@ -86,7 +120,9 @@ const HydrationChart = ({ data }: { data: DrinkLog[] }) => {
                     cursor={false}
                     content={<ChartTooltipContent indicator="line" />}
                 />
-                <Line type="monotone" dataKey="count" stroke="var(--color-drinks)" strokeWidth={2} dot={{r: 4, fill: "var(--color-drinks)"}} activeDot={{r: 6}} />
+                <Legend />
+                <Line type="monotone" dataKey="count" name="Bebidas" stroke="var(--color-drinks)" strokeWidth={2} dot={{r: 4, fill: "var(--color-drinks)"}} activeDot={{r: 6}} />
+                <Line type="monotone" dataKey="goal" name="Meta por Hora" stroke="var(--color-goal)" strokeWidth={2} strokeDasharray="3 3" dot={false} activeDot={false} />
             </LineChart>
         </ResponsiveContainer>
     </ChartContainer>
@@ -226,26 +262,25 @@ export default function Home() {
     const audio = audioRef.current;
     const newSrc = `/${soundName}.mp3`;
 
-    // Only change source if it's different
-    if (audio.src.endsWith(newSrc)) {
-        audio.currentTime = 0; // Rewind
-    } else {
-        audio.src = newSrc;
+    // Only change source if it's different to avoid re-loading
+    if (!audio.src.endsWith(newSrc)) {
+      audio.src = newSrc;
     }
     
-    // Play after user interaction
+    // Play after ensuring it's loaded and user has interacted
+    audio.load(); // Required to load the new source
     const playPromise = audio.play();
     if (playPromise !== undefined) {
-        playPromise.catch(error => {
-            console.error("Audio playback failed:", error);
-            // This error often happens if the user hasn't interacted with the page first.
-             toast({
-                title: "Erro ao tocar o som",
-                description: "A reprodução pode ter sido bloqueada pelo navegador. Interaja com a página e tente novamente.",
-                variant: "destructive",
-                duration: 7000
-            });
+      playPromise.catch(error => {
+        // Autoplay was prevented. This is common before a user interaction.
+        console.error("Audio playback failed:", error);
+        toast({
+            title: "Erro ao tocar o som",
+            description: "A reprodução pode ter sido bloqueada pelo navegador. Interaja com a página e tente novamente.",
+            variant: "destructive",
+            duration: 7000
         });
+      });
     }
   }, [toast]);
   
@@ -500,7 +535,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <div className="w-full aspect-video min-h-0">
-                  <HydrationChart data={drinkLogs} />
+                  <HydrationChart data={drinkLogs} interval={settings.interval} />
                 </div>
               </CardContent>
               <CardFooter className="justify-center">
