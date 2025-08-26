@@ -352,8 +352,8 @@ export default function Home() {
       </aside>
 
       {/* Conteúdo Principal */}
-      <main className="flex-1 flex flex-col items-center justify-start p-4 md:p-8">
-        <div className="w-full max-w-4xl mx-auto space-y-8 flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col items-center p-4 md:p-8 overflow-y-auto">
+        <div className="w-full max-w-4xl mx-auto space-y-8">
           
           <header className="flex items-center justify-between w-full mt-2">
             <div className="flex items-center gap-4">
@@ -378,16 +378,16 @@ export default function Home() {
             </div>
           </header>
 
-          <Card className="flex-1 flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
               <CardHeader>
                   <CardTitle className="flex items-center gap-2"><Droplets className="text-accent" /> Painel de Hidratação</CardTitle>
                   <CardDescription>
                     {getNextReminderMessage()}
                   </CardDescription>
               </CardHeader>
-              <CardContent className="flex-1 flex items-center justify-center">
+              <CardContent className="flex items-center justify-center">
                   {chartData.length > 0 ? (
-                    <ChartContainer config={chartConfig} className="h-full w-full min-h-[250px]">
+                    <ChartContainer config={chartConfig} className="w-full min-h-[250px] aspect-auto">
                       <BarChart data={chartData} accessibilityLayer margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
                         <CartesianGrid vertical={false} strokeDasharray="3 3" />
                         <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} tickLine={false} axisLine={false} />
