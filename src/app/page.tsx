@@ -176,26 +176,42 @@ export default function Home() {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const { toast } = useToast();
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const playSound = useCallback((soundFile: string) => {
-    if (soundFile === 'silencioso' || !audioRef.current) return;
-    
-    const audio = audioRef.current;
-    audio.src = `/${soundFile}.mp3`;
-    audio.load();
-    const playPromise = audio.play();
+    if (soundFile === 'silencioso') return;
 
-    if (playPromise !== undefined) {
-      playPromise.catch(error => {
-        console.error("Audio playback failed:", error);
-        toast({
-            title: "Erro ao tocar o som",
-            description: "A reprodução pode ter sido bloqueada pelo navegador.",
-            variant: "destructive"
+    // Use a separate audio object for playback to avoid conflicts
+    const audio = new Audio(`/${soundFile}.mp3`);
+
+    audio.addEventListener('canplaythrough', () => {
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.error("Audio playback failed:", error);
+          // Don't show toast for notification sounds, only for manual previews if needed
+          if (document.visibilityState === 'visible') {
+             toast({
+              title: "Erro ao tocar o som",
+              description: "A reprodução pode ter sido bloqueada pelo navegador.",
+              variant: "destructive"
+            });
+          }
         });
+      }
+    });
+
+    audio.addEventListener('error', (e) => {
+       console.error("Error loading audio file:", e);
+       toast({
+          title: "Erro ao carregar o som",
+          description: "Não foi possível encontrar o arquivo de áudio.",
+          variant: "destructive"
       });
-    }
+    });
+
+    audio.load();
+
   }, [toast]);
   
   const playNotificationSound = useCallback(() => {
@@ -203,6 +219,9 @@ export default function Home() {
   }, [settings.sound, playSound]);
 
   useEffect(() => {
+    // Create the Audio object once the component is mounted on the client.
+    audioRef.current = new Audio();
+
     const savedSettings = localStorage.getItem('waterful_settings');
     const savedLogs = localStorage.getItem('waterful_logs');
     if (savedSettings) {
@@ -213,16 +232,7 @@ export default function Home() {
     }
     setIsMounted(true);
 
-    if (audioRef.current) {
-        audioRef.current.onerror = () => {
-             toast({
-                title: "Erro ao carregar o som",
-                description: "Não foi possível encontrar o arquivo de áudio.",
-                variant: "destructive"
-            });
-        }
-    }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     if (isMounted) {
@@ -495,7 +505,9 @@ export default function Home() {
           </Card>
         </div>
       </main>
-      <audio ref={audioRef} className="hidden" />
+      {/* Audio element is no longer needed here, it's created dynamically */}
     </div>
   );
 }
+
+    
