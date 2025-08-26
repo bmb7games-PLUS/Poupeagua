@@ -170,7 +170,7 @@ const AppSkeleton = () => (
 );
 
 
-const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, isSidebarVisible }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, playSound: (sound: string) => void, isSidebarVisible: boolean }) => {
+const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, isSidebarVisible, onToggleReminders }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, playSound: (sound: string) => void, isSidebarVisible: boolean, onToggleReminders: () => void }) => {
     
     const handleSoundChange = (soundName: string) => {
         setSettings(s => ({ ...s, sound: soundName }));
@@ -286,7 +286,7 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, 
         <TooltipTrigger asChild>
           <Button 
             className="w-full" 
-            onClick={() => setSettings(s => ({ ...s, isReminderActive: !s.isReminderActive }))}
+            onClick={onToggleReminders}
             variant={settings.isReminderActive ? "destructive" : "default"}
           >
             {isSidebarVisible ? (settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes") : <Bell className="h-5 w-5"/>}
@@ -391,17 +391,27 @@ export default function Home() {
     }
   }, [settings.isReminderActive, settings.interval, toast]);
 
-  const requestNotificationPermission = useCallback(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().then(permission => {
-        if (permission === 'granted') {
-          toast({ title: "Notificações ativadas!", description: "Você será lembrado de beber água." });
-        } else {
-          toast({ title: "Notificações bloqueadas", description: "Não poderemos enviar lembretes.", variant: "destructive" });
-        }
-      });
+  const requestNotificationPermission = useCallback(async () => {
+    if (!('Notification' in window)) {
+        return;
+    }
+    if (Notification.permission === 'default') {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        toast({ title: "Notificações ativadas!", description: "Você será lembrado de beber água." });
+      } else {
+        toast({ title: "Notificações bloqueadas", description: "Não poderemos enviar lembretes.", variant: "destructive" });
+      }
     }
   }, [toast]);
+  
+  const handleToggleReminders = useCallback(() => {
+    const willBeActive = !settings.isReminderActive;
+    if (willBeActive) {
+      requestNotificationPermission();
+    }
+    setSettings(s => ({ ...s, isReminderActive: willBeActive }));
+  }, [settings.isReminderActive, requestNotificationPermission]);
   
   const handleQuickSchedule = useCallback((interval: number) => {
     setSettings(s => ({ ...s, interval }));
@@ -463,8 +473,6 @@ export default function Home() {
     };
 
     if (settings.isReminderActive) {
-      requestNotificationPermission();
-
       const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : Date.now();
       const timeSinceLastDrink = Date.now() - lastDrinkTime;
       const initialDelay = Math.max(0, (settings.interval * 60 * 1000) - timeSinceLastDrink);
@@ -488,7 +496,7 @@ export default function Home() {
     return () => {
       if (reminderInterval) clearInterval(reminderInterval);
     };
-  }, [settings, requestNotificationPermission, drinkLogs, playNotificationSound]);
+  }, [settings.isReminderActive, settings.respectSleepTime, settings.sleepTime, settings.wakeTime, settings.interval, settings.sound, settings.vibrate, drinkLogs, playNotificationSound]);
 
    useEffect(() => {
     let timerId: NodeJS.Timeout | null = null;
@@ -559,7 +567,7 @@ export default function Home() {
         "hidden lg:block border-r border-border overflow-y-auto transition-all duration-300 ease-in-out",
         isSidebarVisible ? "w-80" : "w-24"
       )}>
-        <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={isSidebarVisible} />
+        <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={isSidebarVisible} onToggleReminders={handleToggleReminders}/>
       </aside>
 
       {/* Conteúdo Principal */}
@@ -594,7 +602,7 @@ export default function Home() {
                       </Button>
                   </SheetTrigger>
                   <SheetContent side="right" className="w-80 p-0">
-                      <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={true} />
+                      <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={true} onToggleReminders={handleToggleReminders}/>
                   </SheetContent>
               </Sheet>
             </div>
@@ -624,5 +632,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
