@@ -13,7 +13,7 @@ import { WaterDropIcon } from '@/components/icons';
 import { Clock, Moon, Sun, Bell, Droplets, Settings, Zap, Menu, Vibrate, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, Legend } from 'recharts';
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Legend } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -42,7 +42,7 @@ const DEFAULT_SETTINGS: Settings = {
   vibrate: true,
 };
 
-const HydrationChart = ({ data, interval }: { data: DrinkLog[]; interval: number }) => {
+const HydrationChart = ({ data, settings }: { data: DrinkLog[]; settings: Settings }) => {
   const chartConfig = {
     drinks: {
       label: "Bebidas",
@@ -55,13 +55,11 @@ const HydrationChart = ({ data, interval }: { data: DrinkLog[]; interval: number
   };
 
   const hourlyGoal = useMemo(() => {
-    if (interval <= 0) return 1;
-    return Math.floor(60 / interval);
-  }, [interval]);
+    if (settings.interval <= 0) return 1;
+    return Math.floor(60 / settings.interval);
+  }, [settings.interval]);
 
   const chartData = useMemo(() => {
-    if (!data.length) return [];
-    
     const drinksByHour: { [key: string]: number } = {};
     data.forEach(log => {
       const date = new Date(log.timestamp);
@@ -69,26 +67,43 @@ const HydrationChart = ({ data, interval }: { data: DrinkLog[]; interval: number
       drinksByHour[hourKey] = (drinksByHour[hourKey] || 0) + 1;
     });
 
-    const firstLogTime = new Date(data[0].timestamp);
-    const lastLogTime = new Date(data[data.length - 1].timestamp);
-    firstLogTime.setMinutes(0,0,0);
-    lastLogTime.setMinutes(0,0,0);
-    
+    const [wakeH] = settings.wakeTime.split(':').map(Number);
+    const [sleepH] = settings.sleepTime.split(':').map(Number);
+
     const allHoursData = [];
-    
-    for (let d = new Date(firstLogTime); d <= lastLogTime; d.setHours(d.getHours() + 1)) {
-        const hourKey = `${new Date(d).getHours().toString().padStart(2, '0')}:00`;
+
+    const addHourData = (h: number) => {
+        const hourKey = `${h.toString().padStart(2, '0')}:00`;
         allHoursData.push({
             time: hourKey,
             count: drinksByHour[hourKey] || 0,
             goal: hourlyGoal,
         });
     }
+    
+    if (sleepH < wakeH) { // Overnight sleep
+        for (let h = wakeH; h < 24; h++) {
+            addHourData(h);
+        }
+        for (let h = 0; h < sleepH; h++) {
+            addHourData(h);
+        }
+    } else { // Same day sleep
+        for (let h = wakeH; h < sleepH; h++) {
+            addHourData(h);
+        }
+    }
+    
+    if (allHoursData.length === 0) {
+      return [{ time: "00:00", count: 0, goal: hourlyGoal }];
+    }
 
     return allHoursData;
-  }, [data, hourlyGoal]);
+  }, [data, hourlyGoal, settings.wakeTime, settings.sleepTime]);
 
-  if (!chartData || chartData.length === 0) {
+  const hasData = useMemo(() => data.length > 0, [data]);
+
+  if (!hasData) {
     return (
       <div className="flex flex-col items-center justify-center text-center p-8 bg-muted/30 rounded-lg border-2 border-dashed border-border h-full">
         <p className="text-lg font-medium text-muted-foreground mt-4">Nenhuma bebida registrada ainda.</p>
@@ -298,36 +313,32 @@ export default function Home() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const playSound = useCallback((soundName: string) => {
-    if (soundName === 'silencioso' || !audioRef.current) return;
-    
-    const audio = audioRef.current;
-    
-    try {
-        const newSrc = `/${soundName}.mp3`;
-        if(!audio.src.endsWith(newSrc)) {
-            audio.src = newSrc;
-        }
-        
-        // Ensure the audio is loaded before playing
-        audio.load();
-        const playPromise = audio.play();
+    if (soundName === 'silencioso') return;
 
-        if (playPromise !== undefined) {
-            playPromise.catch(error => {
-                console.error("Audio playback failed:", error);
-                 if (error.name === "NotAllowedError") {
-                    toast({
-                        title: "Reprodução de áudio bloqueada pelo navegador",
-                        description: "A interação com a página é necessária para reproduzir o som.",
-                        variant: "destructive",
-                    });
-                }
-            });
-        }
-    } catch(e) {
-        console.error("Error playing sound", e)
+    if (!audioRef.current) {
+        audioRef.current = new Audio();
+    }
+    const audio = audioRef.current;
+    const newSrc = `/${soundName}.mp3`;
+
+    if (!audio.src.endsWith(newSrc)) {
+        audio.src = newSrc;
+        audio.load();
     }
 
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+        playPromise.catch(error => {
+            console.error("Audio playback failed:", error);
+            if (error.name === "NotAllowedError") {
+                toast({
+                    title: "Reprodução de áudio bloqueada",
+                    description: "A interação do usuário é necessária para tocar o som.",
+                    variant: "destructive",
+                });
+            }
+        });
+    }
   }, [toast]);
   
   const playNotificationSound = useCallback(() => {
@@ -336,10 +347,6 @@ export default function Home() {
 
   useEffect(() => {
     setIsMounted(true);
-    // Move audio element creation here to ensure it's available
-    if (!audioRef.current) {
-        audioRef.current = new Audio();
-    }
     
     try {
       const savedSettings = localStorage.getItem('waterful_settings');
@@ -600,7 +607,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <div className="w-full h-[250px]">
-                  <HydrationChart data={drinkLogs} interval={settings.interval} />
+                  <HydrationChart data={drinkLogs} settings={settings} />
                 </div>
               </CardContent>
               <CardFooter className="justify-center">
