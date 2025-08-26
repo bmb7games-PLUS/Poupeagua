@@ -8,8 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from 'recharts';
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { useToast } from "@/hooks/use-toast"
 import { WaterDropIcon } from '@/components/icons';
 import { Clock, Moon, Sun, Bell, Droplets, Settings, Zap, Menu, Vibrate } from 'lucide-react';
@@ -71,23 +71,8 @@ const AppSkeleton = () => (
 );
 
 
-const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, toast }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, toast: any }) => {
+const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, toast }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, playSound: (sound: string) => void, toast: any }) => {
     
-    const audioRef = useRef<HTMLAudioElement | null>(null);
-
-    const playSound = (sound: string) => {
-        if (sound === 'silencioso') return;
-        try {
-            if (!audioRef.current) {
-                audioRef.current = new Audio();
-            }
-            audioRef.current.src = `/${sound}.mp3`;
-            audioRef.current.play().catch(e => console.error("Audio playback failed:", e));
-        } catch (error) {
-            console.error("Failed to play sound:", error)
-        }
-    }
-
     const handleSoundChange = (soundName: string) => {
         setSettings(s => ({ ...s, sound: soundName }));
         if (soundName !== 'silencioso') {
@@ -193,6 +178,33 @@ export default function Home() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
+    // Create the audio element on the client side
+    audioRef.current = new Audio();
+  }, []);
+  
+  const playSound = useCallback((soundFile: string) => {
+    if (soundFile === 'silencioso' || !audioRef.current) return;
+    
+    const audio = audioRef.current;
+    audio.src = `/${soundFile}.mp3`;
+    audio.load(); // Important to load the new source
+    
+    // Play after the audio is ready
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(error => {
+        console.error("Audio playback failed:", error);
+        // This might happen if the user hasn't interacted with the page yet.
+        // We can choose to notify the user or handle it silently.
+      });
+    }
+  }, []);
+  
+  const playNotificationSound = useCallback(() => {
+      playSound(settings.sound);
+  }, [settings.sound, playSound]);
+
+  useEffect(() => {
     const savedSettings = localStorage.getItem('waterful_settings');
     const savedLogs = localStorage.getItem('waterful_logs');
     if (savedSettings) {
@@ -241,22 +253,6 @@ export default function Home() {
     }
   }, [toast]);
     
-  const playNotificationSound = useCallback(() => {
-      if (settings.sound === 'silencioso') return;
-      try {
-          if (!audioRef.current) {
-              audioRef.current = new Audio();
-          }
-          audioRef.current.src = `/${settings.sound}.mp3`;
-          audioRef.current.play().catch(e => {
-              console.error("Audio playback failed:", e)
-          });
-      } catch(e){
-           console.error("Failed to play notification sound", e);
-      }
-  }, [settings.sound]);
-
-
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
     let nextReminderTimeout: NodeJS.Timeout | null = null;
@@ -346,7 +342,6 @@ export default function Home() {
     })).filter(item => {
       const itemHour = parseInt(item.name.split(':')[0], 10);
       const currentHour = new Date().getHours();
-      // Mostra a barra se houve consumo ou se a hora já passou (e é depois do horário de acordar)
       return item.drinks > 0 || (currentHour >= itemHour && itemHour >= wakeHour);
     });
   }, [drinkLogs, settings.wakeTime]);
@@ -393,7 +388,7 @@ export default function Home() {
     <div className="flex h-screen font-body bg-background">
       {/* Sidebar para desktop */}
       <aside className="hidden lg:block w-80 border-r border-border overflow-y-auto">
-        <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} toast={toast} />
+        <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} toast={toast} />
       </aside>
 
       {/* Conteúdo Principal */}
@@ -417,7 +412,7 @@ export default function Home() {
                       </Button>
                   </SheetTrigger>
                   <SheetContent side="right" className="w-80 p-0">
-                      <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} toast={toast} />
+                      <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} toast={toast} />
                   </SheetContent>
               </Sheet>
             </div>
@@ -431,8 +426,9 @@ export default function Home() {
                   </CardDescription>
               </CardHeader>
               <CardContent className="flex items-center justify-center">
-                <ChartContainer config={chartConfig} className="w-full min-h-[250px] aspect-auto">
+                <div className="w-full aspect-[16/9] min-h-[250px]">
                   {chartData.length > 0 ? (
+                    <ChartContainer config={chartConfig} className="w-full h-full">
                       <BarChart data={chartData} accessibilityLayer margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
                         <CartesianGrid vertical={false} strokeDasharray="3 3" />
                         <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} tickLine={false} axisLine={false} />
@@ -443,6 +439,7 @@ export default function Home() {
                         />
                         <Bar dataKey="drinks" radius={[4, 4, 0, 0]} />
                       </BarChart>
+                    </ChartContainer>
                   ) : (
                     <div className="flex flex-col items-center justify-center text-center p-8 bg-muted/30 rounded-lg border-2 border-dashed border-border h-full">
                        <WaterDropIcon className="w-16 h-16 text-muted-foreground/50 mb-4" />
@@ -450,7 +447,7 @@ export default function Home() {
                       <p className="text-sm text-muted-foreground">Clique no botão abaixo para registrar sua primeira hidratação do dia!</p>
                     </div>
                   )}
-                </ChartContainer>
+                </div>
               </CardContent>
               <CardFooter className="justify-center">
                 <Button size="lg" className="w-full md:w-auto transform hover:scale-105 transition-transform" onClick={handleLogDrink}>
@@ -463,3 +460,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
