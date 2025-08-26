@@ -218,12 +218,16 @@ export default function Home() {
   const playSound = useCallback((soundName: string) => {
     if (soundName === 'silencioso' || typeof window === 'undefined') return;
   
-    if (!audioRef.current) {
-        console.error("Audio element not found");
-        return;
+    const audio = audioRef.current;
+    if (!audio) {
+      toast({
+        title: "Erro de áudio",
+        description: "O player de áudio não foi encontrado.",
+        variant: "destructive",
+      });
+      return;
     }
   
-    const audio = audioRef.current;
     audio.src = `/${soundName}.mp3`;
     audio.load();
     
@@ -231,11 +235,12 @@ export default function Home() {
     if (playPromise !== undefined) {
       playPromise.catch(error => {
         console.error("Audio playback failed:", error);
+        // This toast is helpful for the user to understand browser limitations
         toast({
           title: "Erro ao tocar o som",
-          description: "A reprodução pode ter sido bloqueada pelo navegador.",
+          description: "A reprodução pode ter sido bloqueada pelo navegador. Interaja com a página e tente novamente.",
           variant: "destructive",
-          duration: 5000
+          duration: 7000
         });
       });
     }
@@ -294,6 +299,14 @@ export default function Home() {
         }
       });
     }
+  }, [toast]);
+
+  const handleQuickSchedule = useCallback((interval: number) => {
+    setSettings(s => ({ ...s, interval }));
+    toast({
+      title: "Intervalo atualizado!",
+      description: `Lembretes definidos para cada ${interval} minutos.`,
+    });
   }, [toast]);
     
   useEffect(() => {
@@ -499,5 +512,7 @@ export default function Home() {
     </div>
   );
 }
+
+    
 
     
