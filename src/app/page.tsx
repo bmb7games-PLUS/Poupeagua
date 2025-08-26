@@ -13,8 +13,9 @@ import { WaterDropIcon } from '@/components/icons';
 import { Clock, Moon, Sun, Bell, Droplets, Settings, Zap, Menu, Vibrate, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend } from 'recharts';
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis, Legend } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 type DrinkLog = {
@@ -152,7 +153,7 @@ const AppSkeleton = () => (
 );
 
 
-const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, playSound: (sound: string) => void }) => {
+const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, isSidebarVisible }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, playSound: (sound: string) => void, isSidebarVisible: boolean }) => {
     
     const handleSoundChange = (soundName: string) => {
         setSettings(s => ({ ...s, sound: soundName }));
@@ -161,32 +162,60 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound }
         }
     };
     
+    const renderLabel = (icon: React.ReactNode, text: string, tooltipText: string) => (
+      <TooltipProvider delayDuration={100}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Label className={cn("flex items-center gap-2", !isSidebarVisible && "justify-center")}>
+              {icon}
+              <span className={cn(isSidebarVisible ? "inline" : "hidden")}>{text}</span>
+            </Label>
+          </TooltipTrigger>
+          {!isSidebarVisible && (
+            <TooltipContent side="right">
+              <p>{tooltipText}</p>
+            </TooltipContent>
+          )}
+        </Tooltip>
+      </TooltipProvider>
+    );
+
     return (
     <div className="space-y-6 p-4">
         <div>
-            <h3 className="text-lg font-medium flex items-center gap-2 mb-4"><Settings className="text-accent" /> Configurações</h3>
+            <h3 className={cn("text-lg font-medium flex items-center gap-2 mb-4", !isSidebarVisible && "justify-center")}>
+              <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                      <TooltipTrigger><Settings className="text-accent" /></TooltipTrigger>
+                      {!isSidebarVisible && <TooltipContent side="right"><p>Configurações</p></TooltipContent>}
+                  </Tooltip>
+              </TooltipProvider>
+              <span className={cn(isSidebarVisible ? 'inline' : 'hidden')}>Configurações</span>
+            </h3>
             <div className="space-y-6">
                 <div className="space-y-2">
-                    <Label htmlFor="interval" className="flex items-center gap-2"><Clock /> Intervalo de Lembrete</Label>
-                    <Select
-                        value={String(settings.interval)}
-                        onValueChange={value => setSettings(s => ({ ...s, interval: Number(value) }))}
-                    >
-                        <SelectTrigger id="interval"><SelectValue placeholder="Selecione o intervalo" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="15">A cada 15 minutos</SelectItem>
-                            <SelectItem value="30">A cada 30 minutos</SelectItem>
-                            <SelectItem value="45">A cada 45 minutos</SelectItem>
-                            <SelectItem value="60">A cada 1 hora</SelectItem>
-                            <SelectItem value="90">A cada 1.5 horas</SelectItem>
-                            <SelectItem value="120">A cada 2 horas</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    {renderLabel(<Clock />, "Intervalo de Lembrete", "Intervalo de Lembrete")}
+                    <div className={cn(!isSidebarVisible && "hidden")}>
+                      <Select
+                          value={String(settings.interval)}
+                          onValueChange={value => setSettings(s => ({ ...s, interval: Number(value) }))}
+                      >
+                          <SelectTrigger id="interval"><SelectValue placeholder="Selecione o intervalo" /></SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="15">A cada 15 minutos</SelectItem>
+                              <SelectItem value="30">A cada 30 minutos</SelectItem>
+                              <SelectItem value="45">A cada 45 minutos</SelectItem>
+                              <SelectItem value="60">A cada 1 hora</SelectItem>
+                              <SelectItem value="90">A cada 1.5 horas</SelectItem>
+                              <SelectItem value="120">A cada 2 horas</SelectItem>
+                          </SelectContent>
+                      </Select>
+                    </div>
                 </div>
 
                 <div className="space-y-2">
-                    <Label className="flex items-center gap-2"><Zap/> Agendamentos Rápidos</Label>
-                    <div className="flex flex-nowrap gap-2">
+                    {renderLabel(<Zap/>, "Agendamentos Rápidos", "Agendamentos Rápidos")}
+                     <div className={cn("flex flex-nowrap gap-2", !isSidebarVisible && "hidden")}>
                         <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(30)} className="flex-1">Trabalho</Button>
                         <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(60)} className="flex-1">Fim de Semana</Button>
                         <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(20)} className="flex-1">Exercício</Button>
@@ -194,32 +223,34 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound }
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="sound" className="flex items-center gap-2"><Bell /> Som de Alerta</Label>
-                     <Select
-                        value={settings.sound}
-                        onValueChange={handleSoundChange}
-                    >
-                        <SelectTrigger id="sound"><SelectValue placeholder="Selecione o som" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="drop">Gota</SelectItem>
-                            <SelectItem value="gentle">Suave</SelectItem>
-                            <SelectItem value="bell">Sino</SelectItem>
-                            <SelectItem value="silencioso">Silencioso</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    {renderLabel(<Bell />, "Som de Alerta", "Som de Alerta")}
+                     <div className={cn(!isSidebarVisible && "hidden")}>
+                      <Select
+                          value={settings.sound}
+                          onValueChange={handleSoundChange}
+                      >
+                          <SelectTrigger id="sound"><SelectValue placeholder="Selecione o som" /></SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="drop">Gota</SelectItem>
+                              <SelectItem value="gentle">Suave</SelectItem>
+                              <SelectItem value="bell">Sino</SelectItem>
+                              <SelectItem value="silencioso">Silencioso</SelectItem>
+                          </SelectContent>
+                      </Select>
+                     </div>
                 </div>
 
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor="vibrate-mode" className="flex items-center gap-2 shrink-0 mr-2"><Vibrate /> Vibrar</Label>
+                    <div className={cn("flex items-center justify-between", !isSidebarVisible && "justify-center")}>
+                        {renderLabel(<Vibrate />, "Vibrar", "Vibrar")}
                         <Switch id="vibrate-mode" checked={settings.vibrate} onCheckedChange={checked => setSettings(s => ({...s, vibrate: checked}))}/>
                     </div>
-                    <div className="flex items-center justify-between">
-                        <Label htmlFor="sleep-mode" className="flex items-center gap-2 shrink-0 mr-2"><Moon /> Respeitar Horário de Sono</Label>
+                    <div className={cn("flex items-center justify-between", !isSidebarVisible && "justify-center")}>
+                        {renderLabel(<Moon />, "Respeitar Horário de Sono", "Respeitar Horário de Sono")}
                         <Switch id="sleep-mode" checked={settings.respectSleepTime} onCheckedChange={checked => setSettings(s => ({...s, respectSleepTime: checked}))}/>
                     </div>
                     {settings.respectSleepTime && (
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className={cn("grid grid-cols-2 gap-4", !isSidebarVisible && "hidden")}>
                         <div>
                           <Label htmlFor="wake-time"><Sun className="inline-block mr-1 h-4 w-4"/> Acordar</Label>
                           <Input id="wake-time" type="time" value={settings.wakeTime} onChange={e => setSettings(s => ({ ...s, wakeTime: e.target.value }))} />
@@ -233,13 +264,24 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound }
                 </div>
             </div>
         </div>
-        <Button 
-          className="w-full" 
-          onClick={() => setSettings(s => ({ ...s, isReminderActive: !s.isReminderActive }))}
-          variant={settings.isReminderActive ? "destructive" : "default"}
-        >
-          {settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes"}
-        </Button>
+        <TooltipProvider delayDuration={100}>
+        <Tooltip>
+        <TooltipTrigger asChild>
+          <Button 
+            className="w-full" 
+            onClick={() => setSettings(s => ({ ...s, isReminderActive: !s.isReminderActive }))}
+            variant={settings.isReminderActive ? "destructive" : "default"}
+          >
+            {isSidebarVisible ? (settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes") : <Bell className="h-5 w-5"/>}
+          </Button>
+          </TooltipTrigger>
+           {!isSidebarVisible && (
+            <TooltipContent side="right">
+              <p>{settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes"}</p>
+            </TooltipContent>
+          )}
+          </Tooltip>
+        </TooltipProvider>
     </div>
 )};
 
@@ -260,32 +302,23 @@ export default function Home() {
     
     const audio = audioRef.current;
     
-    // Check if the user has interacted with the document
-    if (document.visibilityState !== 'visible') {
-      console.log("Audio playback prevented: page not visible.");
-      return;
-    }
-
     try {
         const newSrc = `/${soundName}.mp3`;
-        if (audio.src.endsWith(newSrc)) {
-            audio.currentTime = 0;
-        } else {
+        if(!audio.src.endsWith(newSrc)) {
             audio.src = newSrc;
         }
-
+        
+        // Ensure the audio is loaded before playing
+        audio.load();
         const playPromise = audio.play();
 
         if (playPromise !== undefined) {
-            playPromise.then(_ => {
-                // Automatic playback started!
-            }).catch(error => {
-                // Auto-play was prevented
+            playPromise.catch(error => {
                 console.error("Audio playback failed:", error);
                  if (error.name === "NotAllowedError") {
                     toast({
-                        title: "Reprodução de áudio bloqueada",
-                        description: "A interação do navegador é necessária para reproduzir o som.",
+                        title: "Reprodução de áudio bloqueada pelo navegador",
+                        description: "A interação com a página é necessária para reproduzir o som.",
                         variant: "destructive",
                     });
                 }
@@ -514,10 +547,10 @@ export default function Home() {
     <div className="flex h-screen font-body bg-background">
       {/* Sidebar para desktop */}
        <aside className={cn(
-        "hidden lg:block w-80 border-r border-border overflow-y-auto transition-all duration-300 ease-in-out",
-        !isSidebarVisible && "-ml-80"
+        "hidden lg:block border-r border-border overflow-y-auto transition-all duration-300 ease-in-out",
+        isSidebarVisible ? "w-80" : "w-24"
       )}>
-        <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} />
+        <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={isSidebarVisible} />
       </aside>
 
       {/* Conteúdo Principal */}
@@ -552,7 +585,7 @@ export default function Home() {
                       </Button>
                   </SheetTrigger>
                   <SheetContent side="right" className="w-80 p-0">
-                      <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} />
+                      <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={true} />
                   </SheetContent>
               </Sheet>
             </div>
@@ -582,5 +615,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
