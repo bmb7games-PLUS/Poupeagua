@@ -110,10 +110,10 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, 
 
                 <div className="space-y-2">
                     <Label className="flex items-center gap-2"><Zap/> Agendamentos Rápidos</Label>
-                    <div className="flex gap-2 flex-wrap">
-                        <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(30)}>Trabalho</Button>
-                        <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(60)}>Fim de Semana</Button>
-                        <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(20)}>Exercício</Button>
+                    <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(30)} className="flex-1">Trabalho</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(60)} className="flex-1">Fim de Semana</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(20)} className="flex-1">Exercício</Button>
                     </div>
                 </div>
 
