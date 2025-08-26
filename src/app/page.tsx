@@ -176,44 +176,25 @@ export default function Home() {
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const { toast } = useToast();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const playSound = useCallback((soundFile: string) => {
-    if (soundFile === 'silencioso' || typeof window === 'undefined') return;
-
-    if (audioRef.current) {
-        audioRef.current.pause();
-    }
+    if (soundFile === 'silencioso' || !audioRef.current) return;
     
-    try {
-        const audio = new Audio(`/${soundFile}.mp3`);
-        audioRef.current = audio;
-        
-        audio.addEventListener('canplaythrough', () => {
-             audio.play().catch(error => {
-                console.error("Audio playback failed after loading:", error);
-                 toast({
-                    title: "Erro ao tocar o som",
-                    description: "A reprodução foi bloqueada pelo navegador.",
-                    variant: "destructive"
-                });
-             });
-        });
-
-        audio.addEventListener('error', (e) => {
-            console.error("Error loading audio:", e);
-            toast({
-                title: "Erro ao carregar o som",
-                description: "Não foi possível encontrar o arquivo de áudio.",
-                variant: "destructive"
-            });
-        });
-
-        audio.load();
-
-    } catch (error) {
-        console.error("Failed to create audio element:", error);
-    }
+    const audio = audioRef.current;
+    audio.src = `/${soundFile}.mp3`;
+    audio.load();
+    audio.play().catch(error => {
+      console.error("Audio playback failed:", error);
+      // O erro de "não foi possível encontrar" pode ser mascarado por políticas do navegador.
+      // A maioria dos navegadores modernos exige uma interação do usuário para reproduzir áudio.
+      // O clique no seletor de som conta como uma interação.
+      toast({
+          title: "Erro ao tocar o som",
+          description: "A reprodução pode ter sido bloqueada pelo navegador.",
+          variant: "destructive"
+      });
+    });
   }, [toast]);
   
   const playNotificationSound = useCallback(() => {
@@ -230,7 +211,17 @@ export default function Home() {
       setDrinkLogs(JSON.parse(savedLogs));
     }
     setIsMounted(true);
-  }, []);
+
+    if (audioRef.current) {
+        audioRef.current.onerror = () => {
+             toast({
+                title: "Erro ao carregar o som",
+                description: "Não foi possível encontrar o arquivo de áudio.",
+                variant: "destructive"
+            });
+        }
+    }
+  }, [toast]);
 
   useEffect(() => {
     if (isMounted) {
@@ -503,6 +494,7 @@ export default function Home() {
           </Card>
         </div>
       </main>
+      <audio ref={audioRef} className="hidden" />
     </div>
   );
 }
