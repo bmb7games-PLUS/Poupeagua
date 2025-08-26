@@ -12,7 +12,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from 
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { useToast } from "@/hooks/use-toast"
 import { WaterDropIcon } from '@/components/icons';
-import { Clock, Moon, Sun, Bell, Droplets, Settings, Zap, Menu } from 'lucide-react';
+import { Clock, Moon, Sun, Bell, Droplets, Settings, Zap, Menu, Vibrate } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
@@ -27,6 +27,7 @@ type Settings = {
   sleepTime: string;
   wakeTime: string;
   sound: string;
+  vibrate: boolean;
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -35,7 +36,8 @@ const DEFAULT_SETTINGS: Settings = {
   respectSleepTime: true,
   sleepTime: "22:00",
   wakeTime: "08:00",
-  sound: "drop"
+  sound: "drop",
+  vibrate: true,
 };
 
 const chartConfig = {
@@ -72,6 +74,7 @@ const AppSkeleton = () => (
 const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, toast }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, toast: any }) => {
     
     const playSound = (sound: string) => {
+        if (sound === 'silencioso') return;
         try {
             const audio = new Audio(`/${sound}.mp3`);
             audio.play().catch(e => console.error("Audio playback failed:", e));
@@ -82,7 +85,9 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, toast }: { 
 
     const handleSoundChange = (soundName: string) => {
         setSettings(s => ({ ...s, sound: soundName }));
-        playSound(soundName);
+        if (soundName !== 'silencioso') {
+            playSound(soundName);
+        }
         toast({
             title: "Som de Alerta Atualizado!",
             description: `O som foi alterado para "${soundName}".`,
@@ -133,11 +138,16 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, toast }: { 
                             <SelectItem value="drop">Gota</SelectItem>
                             <SelectItem value="gentle">Suave</SelectItem>
                             <SelectItem value="bell">Sino</SelectItem>
+                            <SelectItem value="silencioso">Silencioso</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
 
                 <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <Label htmlFor="vibrate-mode" className="flex items-center gap-2 shrink-0 mr-2"><Vibrate /> Vibrar</Label>
+                        <Switch id="vibrate-mode" checked={settings.vibrate} onCheckedChange={checked => setSettings(s => ({...s, vibrate: checked}))}/>
+                    </div>
                     <div className="flex items-center justify-between">
                         <Label htmlFor="sleep-mode" className="flex items-center gap-2 shrink-0 mr-2"><Moon /> Respeitar Horário de Sono</Label>
                         <Switch id="sleep-mode" checked={settings.respectSleepTime} onCheckedChange={checked => setSettings(s => ({...s, respectSleepTime: checked}))}/>
@@ -230,6 +240,7 @@ export default function Home() {
     let nextReminderTimeout: NodeJS.Timeout | null = null;
     
     const playNotificationSound = () => {
+        if (settings.sound === 'silencioso') return;
         try {
             const audio = new Audio(`/${settings.sound}.mp3`);
             audio.play().catch(e => {
@@ -278,12 +289,18 @@ export default function Home() {
           }
 
           if (Notification.permission === 'granted') {
-            playNotificationSound();
-            new Notification('Waterful: Hora de beber água! 💧', {
+            if (settings.sound !== 'silencioso') {
+                playNotificationSound();
+            }
+            const notificationOptions: NotificationOptions = {
               body: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
               icon: '/icon.png',
-              silent: false, // We let the system handle sound if our own fails
-            });
+              silent: settings.sound === 'silencioso',
+            };
+            if (settings.vibrate && 'vibrate' in navigator) {
+                notificationOptions.vibrate = [200, 100, 200];
+            }
+            new Notification('Waterful: Hora de beber água! 💧', notificationOptions);
           }
           const nextReminderTime = Date.now() + settings.interval * 60 * 1000;
           setNextReminder(nextReminderTime);
@@ -439,6 +456,8 @@ export default function Home() {
     </div>
   );
 }
+
+    
 
     
 
