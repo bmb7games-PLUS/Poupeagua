@@ -50,12 +50,13 @@ const WaterGlass = ({ drinksToday }: { drinksToday: number }) => {
           <div className="relative w-48 h-64 text-slate-700">
             <FuturisticGlassIcon className="w-full h-full" />
             <div
-              className="absolute bottom-[18px] left-1/2 -translate-x-1/2 w-[85%] h-[85%] bg-blue-400/50 rounded-b-[30px] transition-all duration-1000 ease-in-out"
+              className="absolute bottom-[10px] left-1/2 -translate-x-1/2 w-[80%] h-[90%] bg-blue-400/50 transition-all duration-1000 ease-in-out"
               style={{
-                height: `calc(${fillPercentage * 0.85}%)`, // Adjust height based on fill percentage
+                height: `calc(${fillPercentage * 0.9}%)`,
+                borderBottomLeftRadius: '25px',
+                borderBottomRightRadius: '25px',
               }}
             >
-              {/* Efeito de onda */}
               <div className="absolute -bottom-1 left-0 w-full h-4">
                   <div className="wave-bg"></div>
               </div>
@@ -151,7 +152,7 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, 
 
                 <div className="space-y-2">
                     <Label htmlFor="sound" className="flex items-center gap-2"><Bell /> Som de Alerta</Label>
-                    <Select
+                     <Select
                         value={settings.sound}
                         onValueChange={handleSoundChange}
                     >
@@ -210,18 +211,24 @@ export default function Home() {
   const { toast } = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const playSound = useCallback((soundFile: string) => {
-    if (!audioRef.current || soundFile === 'silencioso') return;
-
-    audioRef.current.src = `/${soundFile}.mp3`;
-    const playPromise = audioRef.current.play();
-
+  const playSound = useCallback((soundName: string) => {
+    if (soundName === 'silencioso' || !audioRef.current) return;
+  
+    const audio = audioRef.current;
+    audio.src = `/${soundName}.mp3`;
+  
+    audio.load(); // Garante que a nova fonte seja carregada
+  
+    const playPromise = audio.play();
+  
     if (playPromise !== undefined) {
       playPromise.catch(error => {
+        // Erro comum: a interação do usuário foi perdida.
+        // Isso é uma proteção do navegador.
         console.error("Audio playback failed:", error);
         toast({
           title: "Erro ao tocar o som",
-          description: "A reprodução pode ter sido bloqueada pelo navegador.",
+          description: "A reprodução pode ter sido bloqueada pelo navegador. Tente interagir com a página novamente.",
           variant: "destructive"
         });
       });
@@ -336,17 +343,27 @@ export default function Home() {
           setNextReminder(nextReminderTime);
       };
       
-      const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : Date.now();
-      const timeSinceLastDrink = Date.now() - lastDrinkTime;
-      const initialDelay = Math.max(0, (settings.interval * 60 * 1000) - timeSinceLastDrink);
+      const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : null;
+      
+      // If there are no logs, and reminders are active, schedule the first reminder immediately.
+      if (!lastDrinkTime) {
+          const initialDelay = settings.interval * 60 * 1000;
+          setNextReminder(Date.now() + initialDelay);
+          nextReminderTimeout = setTimeout(() => {
+            scheduleNextReminder();
+            intervalId = setInterval(scheduleNextReminder, settings.interval * 60 * 1000);
+          }, initialDelay);
+      } else {
+        const timeSinceLastDrink = Date.now() - lastDrinkTime;
+        const initialDelay = Math.max(0, (settings.interval * 60 * 1000) - timeSinceLastDrink);
 
-      setNextReminder(Date.now() + initialDelay);
+        setNextReminder(Date.now() + initialDelay);
 
-      nextReminderTimeout = setTimeout(() => {
-        scheduleNextReminder();
-        intervalId = setInterval(scheduleNextReminder, settings.interval * 60 * 1000);
-      }, initialDelay);
-
+        nextReminderTimeout = setTimeout(() => {
+          scheduleNextReminder();
+          intervalId = setInterval(scheduleNextReminder, settings.interval * 60 * 1000);
+        }, initialDelay);
+      }
 
     } else {
       setNextReminder(null);
@@ -388,7 +405,7 @@ export default function Home() {
   };
 
   const formatTimeRemaining = (ms: number | null) => {
-    if (ms === null || ms <= 0) {
+    if (ms === null || ms < 0) { // Changed to < 0 to handle small negative values
       return null;
     }
     const totalSeconds = Math.floor(ms / 1000);
