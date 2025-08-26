@@ -8,10 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BarChart, Bar, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { useToast } from "@/hooks/use-toast"
-import { WaterDropIcon } from '@/components/icons';
+import { WaterDropIcon, FuturisticGlassIcon } from '@/components/icons';
 import { Clock, Moon, Sun, Bell, Droplets, Settings, Zap, Menu, Vibrate } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -40,12 +38,46 @@ const DEFAULT_SETTINGS: Settings = {
   vibrate: true,
 };
 
-const chartConfig = {
-  drinks: {
-    label: "Drinks",
-    color: "hsl(var(--primary))",
-  },
-} satisfies ChartConfig;
+const DAILY_GOAL = 8; // Meta de 8 copos por dia
+
+const WaterGlass = ({ drinksToday }: { drinksToday: number }) => {
+  const fillPercentage = Math.min((drinksToday / DAILY_GOAL) * 100, 100);
+
+  return (
+    <div className="flex flex-col items-center justify-center text-center p-8 bg-muted/30 rounded-lg border-2 border-dashed border-border h-full relative overflow-hidden">
+      {drinksToday > 0 ? (
+        <>
+          <div className="relative w-48 h-64 text-slate-700">
+            <FuturisticGlassIcon className="w-full h-full" />
+            <div
+              className="absolute bottom-[18px] left-1/2 -translate-x-1/2 w-[85%] h-[85%] bg-blue-400/50 rounded-b-[30px] transition-all duration-1000 ease-in-out"
+              style={{
+                height: `calc(${fillPercentage * 0.85}%)`, // Adjust height based on fill percentage
+              }}
+            >
+              {/* Efeito de onda */}
+              <div className="absolute -bottom-1 left-0 w-full h-4">
+                  <div className="wave-bg"></div>
+              </div>
+            </div>
+             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white text-3xl font-bold z-10">
+                {drinksToday}/{DAILY_GOAL}
+              </div>
+          </div>
+          <p className="text-lg font-medium text-muted-foreground mt-4">Você bebeu {drinksToday} de {DAILY_GOAL} copos hoje.</p>
+          {fillPercentage >= 100 && <p className="text-accent font-bold">Meta atingida! Parabéns!</p>}
+        </>
+      ) : (
+        <>
+          <WaterDropIcon className="w-16 h-16 text-muted-foreground/50 mb-4" />
+          <p className="text-lg font-medium text-muted-foreground">Nenhum gole hoje.</p>
+          <p className="text-sm text-muted-foreground">Clique no botão abaixo para registrar sua primeira hidratação do dia!</p>
+        </>
+      )}
+    </div>
+  );
+};
+
 
 const AppSkeleton = () => (
   <div className="flex flex-col items-center justify-center min-h-screen p-4 md:p-8">
@@ -179,49 +211,29 @@ export default function Home() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const playSound = useCallback((soundFile: string) => {
-    if (soundFile === 'silencioso') return;
+    if (!audioRef.current || soundFile === 'silencioso') return;
 
-    // Use a separate audio object for playback to avoid conflicts
-    const audio = new Audio(`/${soundFile}.mp3`);
+    audioRef.current.src = `/${soundFile}.mp3`;
+    const playPromise = audioRef.current.play();
 
-    audio.addEventListener('canplaythrough', () => {
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          console.error("Audio playback failed:", error);
-          // Don't show toast for notification sounds, only for manual previews if needed
-          if (document.visibilityState === 'visible') {
-             toast({
-              title: "Erro ao tocar o som",
-              description: "A reprodução pode ter sido bloqueada pelo navegador.",
-              variant: "destructive"
-            });
-          }
-        });
-      }
-    });
-
-    audio.addEventListener('error', (e) => {
-       console.error("Error loading audio file:", e);
-       toast({
-          title: "Erro ao carregar o som",
-          description: "Não foi possível encontrar o arquivo de áudio.",
+    if (playPromise !== undefined) {
+      playPromise.catch(error => {
+        console.error("Audio playback failed:", error);
+        toast({
+          title: "Erro ao tocar o som",
+          description: "A reprodução pode ter sido bloqueada pelo navegador.",
           variant: "destructive"
+        });
       });
-    });
-
-    audio.load();
-
+    }
   }, [toast]);
   
   const playNotificationSound = useCallback(() => {
-      playSound(settings.sound);
+    playSound(settings.sound);
   }, [settings.sound, playSound]);
 
   useEffect(() => {
-    // Create the Audio object once the component is mounted on the client.
-    audioRef.current = new Audio();
-
+    setIsMounted(true);
     const savedSettings = localStorage.getItem('waterful_settings');
     const savedLogs = localStorage.getItem('waterful_logs');
     if (savedSettings) {
@@ -230,8 +242,6 @@ export default function Home() {
     if (savedLogs) {
       setDrinkLogs(JSON.parse(savedLogs));
     }
-    setIsMounted(true);
-
   }, []);
 
   useEffect(() => {
@@ -366,20 +376,9 @@ export default function Home() {
     };
   }, [nextReminder, settings.isReminderActive]);
   
-  const chartData = useMemo(() => {
-    const todayLogs = drinkLogs.filter(log => new Date(log.timestamp).toDateString() === new Date().toDateString());
-    const hours = Array.from({ length: 24 }, (_, i) => i);
-    const wakeHour = parseInt(settings.wakeTime.split(':')[0], 10);
-    
-    return hours.map(hour => ({
-      name: `${hour.toString().padStart(2, '0')}:00`,
-      drinks: todayLogs.filter(log => new Date(log.timestamp).getHours() === hour).length
-    })).filter(item => {
-      const itemHour = parseInt(item.name.split(':')[0], 10);
-      const currentHour = new Date().getHours();
-      return item.drinks > 0 || (currentHour >= itemHour && itemHour >= wakeHour);
-    });
-  }, [drinkLogs, settings.wakeTime]);
+  const todayLogs = useMemo(() => {
+    return drinkLogs.filter(log => new Date(log.timestamp).toDateString() === new Date().toDateString());
+  }, [drinkLogs]);
 
 
   const handleQuickSchedule = (interval: number) => {
@@ -475,26 +474,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <div className="w-full aspect-video min-h-0">
-                  {chartData.length > 0 ? (
-                    <ChartContainer config={chartConfig} className="w-full h-full">
-                      <BarChart data={chartData} accessibilityLayer margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
-                        <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                        <XAxis dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} tickLine={false} axisLine={false} />
-                        <YAxis allowDecimals={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} tickLine={false} axisLine={false} />
-                        <ChartTooltip
-                          cursor={false}
-                          content={<ChartTooltipContent labelFormatter={(value) => `Bebidas às ${value}`} indicator="dot" />}
-                        />
-                        <Bar dataKey="drinks" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ChartContainer>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center text-center p-8 bg-muted/30 rounded-lg border-2 border-dashed border-border h-full">
-                       <WaterDropIcon className="w-16 h-16 text-muted-foreground/50 mb-4" />
-                      <p className="text-lg font-medium text-muted-foreground">Nenhum gole hoje.</p>
-                      <p className="text-sm text-muted-foreground">Clique no botão abaixo para registrar sua primeira hidratação do dia!</p>
-                    </div>
-                  )}
+                  <WaterGlass drinksToday={todayLogs.length} />
                 </div>
               </CardContent>
               <CardFooter className="justify-center">
@@ -505,9 +485,7 @@ export default function Home() {
           </Card>
         </div>
       </main>
-      {/* Audio element is no longer needed here, it's created dynamically */}
+      <audio ref={audioRef} className="hidden" />
     </div>
   );
 }
-
-    
