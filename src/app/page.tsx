@@ -199,108 +199,108 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, 
     );
 
     return (
-      <div className="space-y-6 p-4">
-          <div>
-              <h3 className={cn("text-lg font-medium flex items-center gap-2 mb-4", !isSidebarVisible && "justify-center")}>
-                <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                        <TooltipTrigger><Settings className="text-accent" /></TooltipTrigger>
-                        {!isSidebarVisible && <TooltipContent side="right"><p>Configurações</p></TooltipContent>}
-                    </Tooltip>
-                </TooltipProvider>
-                <span className={cn(isSidebarVisible ? 'inline' : 'hidden')}>Configurações</span>
-              </h3>
-              <div className="space-y-6">
-                  <div className="space-y-2">
-                      {renderLabel(<Clock />, "Intervalo de Lembrete", "Intervalo de Lembrete")}
-                      <div className={cn(!isSidebarVisible && "hidden")}>
-                        <Select
-                            value={String(settings.interval)}
-                            onValueChange={value => setSettings(s => ({ ...s, interval: Number(value) }))}
-                        >
-                            <SelectTrigger id="interval"><SelectValue placeholder="Selecione o intervalo" /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="15">A cada 15 minutos</SelectItem>
-                                <SelectItem value="30">A cada 30 minutos</SelectItem>
-                                <SelectItem value="45">A cada 45 minutos</SelectItem>
-                                <SelectItem value="60">A cada 1 hora</SelectItem>
-                                <SelectItem value="90">A cada 1.5 horas</SelectItem>
-                                <SelectItem value="120">A cada 2 horas</SelectItem>
-                            </SelectContent>
-                        </Select>
-                      </div>
-                  </div>
+    <div className="space-y-6 p-4">
+        <div>
+            <h3 className={cn("text-lg font-medium flex items-center gap-2 mb-4", !isSidebarVisible && "justify-center")}>
+              <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                      <TooltipTrigger><Settings className="text-accent" /></TooltipTrigger>
+                      {!isSidebarVisible && <TooltipContent side="right"><p>Configurações</p></TooltipContent>}
+                  </Tooltip>
+              </TooltipProvider>
+              <span className={cn(isSidebarVisible ? 'inline' : 'hidden')}>Configurações</span>
+            </h3>
+            <div className="space-y-6">
+                <div className="space-y-2">
+                    {renderLabel(<Clock />, "Intervalo de Lembrete", "Intervalo de Lembrete")}
+                    <div className={cn(!isSidebarVisible && "hidden")}>
+                      <Select
+                          value={String(settings.interval)}
+                          onValueChange={value => setSettings(s => ({ ...s, interval: Number(value) }))}
+                      >
+                          <SelectTrigger id="interval"><SelectValue placeholder="Selecione o intervalo" /></SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="15">A cada 15 minutos</SelectItem>
+                              <SelectItem value="30">A cada 30 minutos</SelectItem>
+                              <SelectItem value="45">A cada 45 minutos</SelectItem>
+                              <SelectItem value="60">A cada 1 hora</SelectItem>
+                              <SelectItem value="90">A cada 1.5 horas</SelectItem>
+                              <SelectItem value="120">A cada 2 horas</SelectItem>
+                          </SelectContent>
+                      </Select>
+                    </div>
+                </div>
 
-                  <div className="space-y-2">
-                      {renderLabel(<Zap/>, "Agendamentos Rápidos", "Agendamentos Rápidos")}
-                       <div className={cn("flex flex-nowrap gap-2", !isSidebarVisible && "hidden")}>
-                          <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(30)} className="flex-1">Trabalho</Button>
-                          <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(60)} className="flex-1">Fim de Semana</Button>
-                          <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(20)} className="flex-1">Exercício</Button>
-                      </div>
-                  </div>
+                <div className="space-y-2">
+                    {renderLabel(<Zap/>, "Agendamentos Rápidos", "Agendamentos Rápidos")}
+                     <div className={cn("flex flex-nowrap gap-2", !isSidebarVisible && "hidden")}>
+                        <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(30)} className="flex-1">Trabalho</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(60)} className="flex-1">Fim de Semana</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(20)} className="flex-1">Exercício</Button>
+                    </div>
+                </div>
 
-                  <div className="space-y-2">
-                      {renderLabel(<Bell />, "Som de Alerta", "Som de Alerta")}
-                       <div className={cn(!isSidebarVisible && "hidden")}>
-                        <Select
-                            value={settings.sound}
-                            onValueChange={handleSoundChange}
-                        >
-                            <SelectTrigger id="sound"><SelectValue placeholder="Selecione o som" /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="drop">Gota</SelectItem>
-                                <SelectItem value="gentle">Suave</SelectItem>
-                                <SelectItem value="bell">Sino</SelectItem>
-                                <SelectItem value="silencioso">Silencioso</SelectItem>
-                            </SelectContent>
-                        </Select>
-                       </div>
-                  </div>
+                <div className="space-y-2">
+                    {renderLabel(<Bell />, "Som de Alerta", "Som de Alerta")}
+                     <div className={cn(!isSidebarVisible && "hidden")}>
+                      <Select
+                          value={settings.sound}
+                          onValueChange={handleSoundChange}
+                      >
+                          <SelectTrigger id="sound"><SelectValue placeholder="Selecione o som" /></SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="drop">Gota</SelectItem>
+                              <SelectItem value="gentle">Suave</SelectItem>
+                              <SelectItem value="bell">Sino</SelectItem>
+                              <SelectItem value="silencioso">Silencioso</SelectItem>
+                          </SelectContent>
+                      </Select>
+                     </div>
+                </div>
 
-                  <div className="space-y-4">
-                      <div className={cn("flex items-center justify-between", !isSidebarVisible && "justify-center")}>
-                          {renderLabel(<Vibrate />, "Vibrar", "Vibrar")}
-                          <Switch id="vibrate-mode" checked={settings.vibrate} onCheckedChange={checked => setSettings(s => ({...s, vibrate: checked}))}/>
-                      </div>
-                      <div className={cn("flex items-center justify-between", !isSidebarVisible && "justify-center")}>
-                          {renderLabel(<Moon />, "Respeitar Horário de Sono", "Respeitar Horário de Sono")}
-                          <Switch id="sleep-mode" checked={settings.respectSleepTime} onCheckedChange={checked => setSettings(s => ({...s, respectSleepTime: checked}))}/>
-                      </div>
-                      {settings.respectSleepTime && (
-                        <div className={cn("grid grid-cols-2 gap-4", !isSidebarVisible && "hidden")}>
-                          <div>
-                            <Label htmlFor="wake-time"><Sun className="inline-block mr-1 h-4 w-4"/> Acordar</Label>
-                            <Input id="wake-time" type="time" value={settings.wakeTime} onChange={e => setSettings(s => ({ ...s, wakeTime: e.target.value }))} />
-                          </div>
-                           <div>
-                            <Label htmlFor="sleep-time"><Moon className="inline-block mr-1 h-4 w-4"/> Dormir</Label>
-                            <Input id="sleep-time" type="time" value={settings.sleepTime} onChange={e => setSettings(s => ({ ...s, sleepTime: e.target.value }))} />
-                          </div>
+                <div className="space-y-4">
+                    <div className={cn("flex items-center justify-between", !isSidebarVisible && "justify-center")}>
+                        {renderLabel(<Vibrate />, "Vibrar", "Vibrar")}
+                        <Switch id="vibrate-mode" checked={settings.vibrate} onCheckedChange={checked => setSettings(s => ({...s, vibrate: checked}))}/>
+                    </div>
+                    <div className={cn("flex items-center justify-between", !isSidebarVisible && "justify-center")}>
+                        {renderLabel(<Moon />, "Respeitar Horário de Sono", "Respeitar Horário de Sono")}
+                        <Switch id="sleep-mode" checked={settings.respectSleepTime} onCheckedChange={checked => setSettings(s => ({...s, respectSleepTime: checked}))}/>
+                    </div>
+                    {settings.respectSleepTime && (
+                      <div className={cn("grid grid-cols-2 gap-4", !isSidebarVisible && "hidden")}>
+                        <div>
+                          <Label htmlFor="wake-time"><Sun className="inline-block mr-1 h-4 w-4"/> Acordar</Label>
+                          <Input id="wake-time" type="time" value={settings.wakeTime} onChange={e => setSettings(s => ({ ...s, wakeTime: e.target.value }))} />
                         </div>
-                      )}
-                  </div>
-              </div>
-          </div>
-          <TooltipProvider delayDuration={100}>
-          <Tooltip>
-          <TooltipTrigger asChild>
-            <Button 
-              className="w-full" 
-              onClick={onToggleReminders}
-              variant={settings.isReminderActive ? "destructive" : "default"}
-            >
-              {isSidebarVisible ? (settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes") : <Bell className="h-5 w-5"/>}
-            </Button>
-            </TooltipTrigger>
-             {!isSidebarVisible && (
-              <TooltipContent side="right">
-                <p>{settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes"}</p>
-              </TooltipContent>
-            )}
-            </Tooltip>
-          </TooltipProvider>
-      </div>
+                         <div>
+                          <Label htmlFor="sleep-time"><Moon className="inline-block mr-1 h-4 w-4"/> Dormir</Label>
+                          <Input id="sleep-time" type="time" value={settings.sleepTime} onChange={e => setSettings(s => ({ ...s, sleepTime: e.target.value }))} />
+                        </div>
+                      </div>
+                    )}
+                </div>
+            </div>
+        </div>
+        <TooltipProvider delayDuration={100}>
+        <Tooltip>
+        <TooltipTrigger asChild>
+          <Button 
+            className="w-full" 
+            onClick={onToggleReminders}
+            variant={settings.isReminderActive ? "destructive" : "default"}
+          >
+            {isSidebarVisible ? (settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes") : <Bell className="h-5 w-5"/>}
+          </Button>
+          </TooltipTrigger>
+           {!isSidebarVisible && (
+            <TooltipContent side="right">
+              <p>{settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes"}</p>
+            </TooltipContent>
+          )}
+          </Tooltip>
+        </TooltipProvider>
+    </div>
     );
 };
 
@@ -354,12 +354,25 @@ export default function Home() {
     
     try {
       const savedSettings = localStorage.getItem('waterful_settings');
-      const savedLogs = localStorage.getItem('waterful_logs');
+      let savedLogs = localStorage.getItem('waterful_logs');
+
       if (savedSettings) {
         setSettings(JSON.parse(savedSettings));
       }
+
       if (savedLogs) {
-        setDrinkLogs(JSON.parse(savedLogs));
+        let logs: DrinkLog[] = JSON.parse(savedLogs);
+        
+        // Clean up logs older than 7 days
+        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const recentLogs = logs.filter(log => log.timestamp >= sevenDaysAgo);
+        
+        setDrinkLogs(recentLogs);
+
+        // If logs were cleaned, update localStorage
+        if (logs.length !== recentLogs.length) {
+          localStorage.setItem('waterful_logs', JSON.stringify(recentLogs));
+        }
       }
     } catch (error) {
       console.error("Failed to parse from localStorage", error);
@@ -389,7 +402,6 @@ export default function Home() {
     if (settings.isReminderActive) {
         const nextReminderTime = now + settings.interval * 60 * 1000;
         setNextReminder(nextReminderTime);
-        setTimeRemaining(settings.interval * 60 * 1000);
     }
   }, [settings.isReminderActive, settings.interval, toast]);
 
@@ -423,106 +435,113 @@ export default function Home() {
     });
   }, [toast]);
     
+  const showReminder = useCallback(() => {
+    // Check for sleep time before showing reminder
+    const now = new Date();
+    if (settings.respectSleepTime) {
+      const [sleepH, sleepM] = settings.sleepTime.split(':').map(Number);
+      const [wakeH, wakeM] = settings.wakeTime.split(':').map(Number);
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const sleepMinutes = sleepH * 60 + sleepM;
+      const wakeMinutes = wakeH * 60 + wakeM;
+
+      let isSleepTime = false;
+      if (sleepMinutes > wakeMinutes) { // Overnight sleep
+          if (currentMinutes >= sleepMinutes || currentMinutes < wakeMinutes) isSleepTime = true;
+      } else { // Same day sleep
+          if (currentMinutes >= sleepMinutes && currentMinutes < wakeMinutes) isSleepTime = true;
+      }
+      if (isSleepTime) {
+        const nextWakeTime = new Date();
+        nextWakeTime.setHours(wakeH, wakeM, 0, 0);
+        if(now.getTime() > nextWakeTime.getTime()){
+           nextWakeTime.setDate(nextWakeTime.getDate() + 1);
+        }
+         setNextReminder(nextWakeTime.getTime());
+         return;
+      }
+    }
+
+    // Play sound and show notification
+    if (Notification.permission === 'granted') {
+      playNotificationSound();
+      
+      const notificationOptions: NotificationOptions = {
+        body: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
+        icon: '/icon.png',
+        silent: settings.sound === 'silencioso',
+      };
+      if (settings.vibrate && 'vibrate' in navigator) {
+          notificationOptions.vibrate = [200, 100, 200];
+      }
+      new Notification('Waterful: Hora de beber água! 💧', notificationOptions);
+    }
+    
+    // Stop the timer, wait for user intervention
+    setNextReminder(null); 
+    setTimeRemaining(null);
+
+  }, [settings.respectSleepTime, settings.sleepTime, settings.wakeTime, settings.sound, settings.vibrate, playNotificationSound]);
+
   useEffect(() => {
-    let reminderInterval: NodeJS.Timeout | null = null;
-
-    const scheduleNextReminder = () => {
-        const now = new Date();
-        
-        if (settings.respectSleepTime) {
-          const [sleepH, sleepM] = settings.sleepTime.split(':').map(Number);
-          const [wakeH, wakeM] = settings.wakeTime.split(':').map(Number);
-          const currentMinutes = now.getHours() * 60 + now.getMinutes();
-          const sleepMinutes = sleepH * 60 + sleepM;
-          const wakeMinutes = wakeH * 60 + wakeM;
-
-          let isSleepTime = false;
-          if (sleepMinutes > wakeMinutes) { // Overnight sleep
-              if (currentMinutes >= sleepMinutes || currentMinutes < wakeMinutes) isSleepTime = true;
-          } else { // Same day sleep
-              if (currentMinutes >= sleepMinutes && currentMinutes < wakeMinutes) isSleepTime = true;
-          }
-
-          if (isSleepTime) {
-            const nextWakeTime = new Date();
-            nextWakeTime.setHours(wakeH, wakeM, 0, 0);
-            if(now.getTime() > nextWakeTime.getTime()){
-               nextWakeTime.setDate(nextWakeTime.getDate() + 1);
-            }
-             setNextReminder(nextWakeTime.getTime());
-             return; 
-          }
-        }
-
-        // Play sound and show notification
-        if (Notification.permission === 'granted') {
-          playNotificationSound();
-          
-          const notificationOptions: NotificationOptions = {
-            body: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
-            icon: '/icon.png',
-            silent: settings.sound === 'silencioso',
-          };
-          if (settings.vibrate && 'vibrate' in navigator) {
-              notificationOptions.vibrate = [200, 100, 200];
-          }
-          new Notification('Waterful: Hora de beber água! 💧', notificationOptions);
-        }
-
-        // Set next reminder time
-        const nextReminderTime = Date.now() + settings.interval * 60 * 1000;
-        setNextReminder(nextReminderTime);
-    };
-
+    let timeoutId: NodeJS.Timeout | null = null;
+    
     if (settings.isReminderActive) {
       const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : Date.now();
       const timeSinceLastDrink = Date.now() - lastDrinkTime;
       const initialDelay = Math.max(0, (settings.interval * 60 * 1000) - timeSinceLastDrink);
       
-      const timeoutId = setTimeout(() => {
-        scheduleNextReminder();
-        reminderInterval = setInterval(scheduleNextReminder, settings.interval * 60 * 1000);
-      }, initialDelay);
-      
-      setNextReminder(Date.now() + initialDelay);
+      // If there's an active reminder cycle, set a timeout for it
+      if(nextReminder && nextReminder > Date.now()){
+        const delay = nextReminder - Date.now();
+        timeoutId = setTimeout(showReminder, delay);
+      } else if (drinkLogs.length > 0) { // If there's no active cycle but we have logs, start based on the last log
+        const reminderTime = lastDrinkTime + settings.interval * 60 * 1000;
+        if(reminderTime > Date.now()){
+            setNextReminder(reminderTime);
+        } else {
+            // If the last drink was too long ago, trigger reminder immediately
+            showReminder();
+        }
+      }
 
       return () => {
-        clearTimeout(timeoutId);
-        if (reminderInterval) clearInterval(reminderInterval);
+        if(timeoutId) clearTimeout(timeoutId);
       };
     } else {
       setNextReminder(null);
       setTimeRemaining(null);
     }
 
-    return () => {
-      if (reminderInterval) clearInterval(reminderInterval);
-    };
-  }, [settings.isReminderActive, settings.respectSleepTime, settings.sleepTime, settings.wakeTime, settings.interval, settings.sound, settings.vibrate, drinkLogs, playNotificationSound]);
+  }, [settings.isReminderActive, settings.interval, drinkLogs, showReminder, nextReminder]);
+
 
    useEffect(() => {
     let timerId: NodeJS.Timeout | null = null;
     if (nextReminder && settings.isReminderActive) {
-      timerId = setInterval(() => {
+      const update = () => {
         const remaining = Math.max(0, nextReminder - Date.now());
         setTimeRemaining(remaining);
         if (remaining === 0) {
+           showReminder();
            if(timerId) clearInterval(timerId);
         }
-      }, 1000);
+      }
+      update(); // run once immediately
+      timerId = setInterval(update, 1000);
     } else {
       setTimeRemaining(null);
     }
     return () => {
       if (timerId) clearInterval(timerId);
     };
-  }, [nextReminder, settings.isReminderActive]);
+  }, [nextReminder, settings.isReminderActive, showReminder]);
   
   const formatTimeRemaining = (ms: number | null) => {
-    if (ms === null || ms <= 0) {
+    if (ms === null || ms < 0) {
       return "00:00";
     }
-    const totalSeconds = Math.floor(ms / 1000);
+    const totalSeconds = Math.ceil(ms / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
@@ -551,11 +570,11 @@ export default function Home() {
     }
 
     const formattedTime = formatTimeRemaining(timeRemaining);
-    if (formattedTime !== "00:00") {
+    if (timeRemaining && timeRemaining > 0) {
       return `Próximo lembrete em: ${formattedTime}`;
     }
 
-    return "Clique em 'Já bebi água!' para reiniciar.";
+    return "Hora de beber água! Clique em 'Já bebi água!' para reiniciar.";
   }
   
   if (!isMounted) {
