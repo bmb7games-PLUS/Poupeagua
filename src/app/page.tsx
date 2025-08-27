@@ -12,11 +12,12 @@ import { useToast } from "@/hooks/use-toast"
 import { WaterDropIcon } from '@/components/icons';
 import { Clock, Moon, Sun, Bell, Droplets, Settings, Zap, Menu, Vibrate, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Legend, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { initializeApp } from "firebase/app";
 
 type DrinkLog = {
   timestamp: number;
@@ -117,7 +118,7 @@ const HydrationChart = ({ data, settings }: { data: DrinkLog[]; settings: Settin
   return (
     <ChartContainer config={chartConfig} className="w-full h-full">
         <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={chartData} margin={{ top: 20, right: 20, left: -10, bottom: 0 }}>
+            <LineChart data={chartData} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                 <XAxis 
                     dataKey="time" 
@@ -589,8 +590,8 @@ export default function Home() {
             <div className="flex items-center gap-4">
               <WaterDropIcon className="w-12 h-12 text-primary" />
               <div>
-                <h1 className="text-4xl font-bold font-headline text-slate-800 dark:text-slate-100">Waterful</h1>
-                <p className="text-muted-foreground text-md">Seu companheiro de hidratação.</p>
+                <h1 className="text-3xl sm:text-4xl font-bold font-headline text-slate-800 dark:text-slate-100">Waterful</h1>
+                <p className="text-muted-foreground text-sm sm:text-md">Seu companheiro de hidratação.</p>
               </div>
             </div>
             {/* Gatilho da Sheet para mobile */}
@@ -602,6 +603,9 @@ export default function Home() {
                       </Button>
                   </SheetTrigger>
                   <SheetContent side="right" className="w-80 p-0">
+                      <SheetHeader className="p-4 border-b">
+                        <SheetTitle>Configurações</SheetTitle>
+                      </SheetHeader>
                       <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={true} onToggleReminders={handleToggleReminders}/>
                   </SheetContent>
               </Sheet>
