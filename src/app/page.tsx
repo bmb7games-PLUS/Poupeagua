@@ -258,9 +258,9 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, 
 
                  <div className="space-y-4">
                     <div className={cn("flex items-center justify-between", !isSidebarVisible && "flex-col gap-2 items-center")}>
-                        <Label htmlFor="vibrate-mode" className="flex items-center gap-2 cursor-pointer">
+                         <Label htmlFor="vibrate-mode" className="flex items-center gap-2 cursor-pointer">
                             <Vibrate />
-                            <span className={cn(isSidebarVisible ? 'inline' : 'hidden', !isSidebarVisible && 'block text-xs mt-1')}>Vibrar</span>
+                             <span className={cn(isSidebarVisible ? 'inline' : 'hidden', !isSidebarVisible && 'block text-xs mt-1')}>Vibrar</span>
                         </Label>
                         <Switch id="vibrate-mode" checked={settings.vibrate} onCheckedChange={checked => setSettings(s => ({...s, vibrate: checked}))}/>
                     </div>
@@ -301,6 +301,7 @@ export default function Home() {
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const { toast } = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const reminderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const playSound = useCallback((soundName: string) => {
     if (soundName === 'silencioso') return;
@@ -335,6 +336,7 @@ export default function Home() {
     playSound(settings.sound);
   }, [settings.sound, playSound]);
 
+  // Load settings and logs from localStorage
   useEffect(() => {
     setIsMounted(true);
     
@@ -348,14 +350,17 @@ export default function Home() {
       if (savedLogs) {
         let logs: DrinkLog[] = JSON.parse(savedLogs);
         
+        // Clean up logs older than 7 days
         const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
         const recentLogs = logs.filter(log => log.timestamp >= sevenDaysAgo);
         
+        // Filter logs for today
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const todaysLogs = recentLogs.filter(log => log.timestamp >= today.getTime());
         setDrinkLogs(todaysLogs);
 
+        // Save back the cleaned logs if any were removed
         if (logs.length !== recentLogs.length) {
           localStorage.setItem('waterful_logs', JSON.stringify(recentLogs));
         }
@@ -365,87 +370,40 @@ export default function Home() {
     }
   }, []);
 
+  // Save logs to localStorage
   useEffect(() => {
     if (isMounted) {
       try {
-        const savedLogs = localStorage.getItem('waterful_logs');
-        const allLogs = savedLogs ? JSON.parse(savedLogs) : [];
-        const updatedLogs = [...allLogs];
+        const savedLogs = localStorage.getItem('waterful_logs') || '[]';
+        const allLogs = JSON.parse(savedLogs);
         
-        drinkLogs.forEach(log => {
-          if (!updatedLogs.find(l => l.timestamp === log.timestamp)) {
-            updatedLogs.push(log);
-          }
-        });
+        // Create a Set of existing timestamps for quick lookup
+        const existingTimestamps = new Set(allLogs.map((l: DrinkLog) => l.timestamp));
+        
+        // Filter out logs that are already in storage
+        const newLogs = drinkLogs.filter(log => !existingTimestamps.has(log.timestamp));
 
-        localStorage.setItem('waterful_logs', JSON.stringify(updatedLogs));
+        if (newLogs.length > 0) {
+          const updatedLogs = [...allLogs, ...newLogs];
+          localStorage.setItem('waterful_logs', JSON.stringify(updatedLogs));
+        }
       } catch (error) {
         console.error("Failed to save logs to localStorage", error);
       }
     }
   }, [drinkLogs, isMounted]);
 
+  // Save settings to localStorage
   useEffect(() => {
     if (isMounted) {
       localStorage.setItem('waterful_settings', JSON.stringify(settings));
     }
   }, [settings, isMounted]);
   
-  const handleLogDrink = useCallback(() => {
-    const now = Date.now();
-    setDrinkLogs(prev => [...prev, { timestamp: now }]);
-    toast({
-      title: "Hidratação Registrada!",
-      description: "Excelente! O cronômetro foi reiniciado.",
-      duration: 3000,
-    });
-    if (settings.isReminderActive) {
-        const nextReminderTime = now + settings.interval * 60 * 1000;
-        setNextReminder(nextReminderTime);
-    }
-  }, [settings.isReminderActive, settings.interval, toast]);
-
-  const requestNotificationPermission = useCallback(async () => {
-    if (!('Notification' in window)) {
-        return 'denied';
-    }
-    if (Notification.permission === 'default') {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        toast({ title: "Notificações ativadas!", description: "Você será lembrado de beber água." });
-      } else {
-        toast({ title: "Notificações bloqueadas", description: "Não poderemos enviar lembretes.", variant: "destructive" });
-      }
-      return permission;
-    }
-    return Notification.permission;
-  }, [toast]);
-  
-  const handleToggleReminders = useCallback(async () => {
-    const willBeActive = !settings.isReminderActive;
-    if (willBeActive) {
-      const permission = await requestNotificationPermission();
-      if (permission !== 'granted') {
-        setSettings(s => ({ ...s, isReminderActive: false }));
-        return;
-      }
-      if (!nextReminder || nextReminder <= Date.now()) {
-        const nextTime = Date.now() + settings.interval * 60 * 1000;
-        setNextReminder(nextTime);
-      }
-    }
-    setSettings(s => ({ ...s, isReminderActive: willBeActive }));
-  }, [settings.isReminderActive, settings.interval, requestNotificationPermission, nextReminder]);
-  
-  const handleQuickSchedule = useCallback((interval: number) => {
-    setSettings(s => ({ ...s, interval }));
-    toast({
-      title: "Intervalo atualizado!",
-      description: `Lembretes definidos para cada ${interval} minutos.`,
-    });
-  }, [toast]);
-    
   const showReminder = useCallback(async () => {
+    // This function will be called by scheduleReminder
+    // It's defined early because scheduleReminder depends on it.
+
     // Check for sleep time before showing reminder
     const now = new Date();
     if (settings.respectSleepTime) {
@@ -467,8 +425,9 @@ export default function Home() {
         if(now.getTime() > nextWakeTime.getTime()){
            nextWakeTime.setDate(nextWakeTime.getDate() + 1);
         }
-         setNextReminder(nextWakeTime.getTime());
-         return;
+        // The scheduleReminder is called inside the useEffect hook, no need to call it here again
+        // to avoid potential loops. The main effect will handle rescheduling.
+        return;
       }
     }
 
@@ -498,32 +457,117 @@ export default function Home() {
 
   }, [settings, playNotificationSound]);
 
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout | null = null;
+  const scheduleReminder = useCallback((time: number) => {
+    if (reminderTimeoutRef.current) {
+        clearTimeout(reminderTimeoutRef.current);
+    }
+    const now = Date.now();
+    const delay = time - now;
 
-    if (settings.isReminderActive && nextReminder && nextReminder > Date.now()) {
-      const delay = nextReminder - Date.now();
-      timeoutId = setTimeout(showReminder, delay);
-    } else if (settings.isReminderActive && (!nextReminder || nextReminder <= Date.now())) {
-      // If reminders are on but there's no valid next reminder, check if we should show one now.
-      const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : 0;
-      if (lastDrinkTime > 0) {
-        const expectedReminderTime = lastDrinkTime + settings.interval * 60 * 1000;
-        if (Date.now() >= expectedReminderTime) {
-          showReminder();
-        } else {
-          setNextReminder(expectedReminderTime);
-        }
-      } else if (!nextReminder) {
-        // No drinks logged yet, reminders are on, schedule first one.
-         // This case is handled by handleToggleReminders, but as a fallback.
+    if (delay > 0) {
+        setNextReminder(time);
+        reminderTimeoutRef.current = setTimeout(() => {
+            showReminder();
+        }, delay);
+    } else {
+       showReminder();
+    }
+  }, [showReminder]);
+  
+  const handleLogDrink = useCallback(() => {
+    const now = Date.now();
+    setDrinkLogs(prev => [...prev, { timestamp: now }]);
+    toast({
+      title: "Hidratação Registrada!",
+      description: "Excelente! O cronômetro foi reiniciado.",
+      duration: 3000,
+    });
+    if (settings.isReminderActive) {
+        const nextReminderTime = now + settings.interval * 60 * 1000;
+        scheduleReminder(nextReminderTime);
+    }
+  }, [settings.isReminderActive, settings.interval, toast, scheduleReminder]);
+
+  const requestNotificationPermission = useCallback(async () => {
+    if (!('Notification' in window)) {
+        return 'denied';
+    }
+    if (Notification.permission === 'default') {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        toast({ title: "Notificações ativadas!", description: "Você será lembrado de beber água." });
+      } else {
+        toast({ title: "Notificações bloqueadas", description: "Não poderemos enviar lembretes.", variant: "destructive" });
+      }
+      return permission;
+    }
+    return Notification.permission;
+  }, [toast]);
+  
+  const handleToggleReminders = useCallback(async () => {
+    const willBeActive = !settings.isReminderActive;
+
+    if (willBeActive) {
+      const permission = await requestNotificationPermission();
+      if (permission !== 'granted') {
+        return; // Don't activate reminders if permission is not granted
       }
     }
 
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, [settings.isReminderActive, settings.interval, drinkLogs, nextReminder, showReminder]);
+    setSettings(s => ({ ...s, isReminderActive: willBeActive }));
+
+    if (willBeActive) {
+        // If we are activating reminders, schedule the next one.
+        // The main useEffect will handle the logic of when that should be.
+        const nextTime = Date.now() + settings.interval * 60 * 1000;
+        scheduleReminder(nextTime);
+    } else {
+        // If we are deactivating, clear any existing timeout and state.
+        if (reminderTimeoutRef.current) {
+            clearTimeout(reminderTimeoutRef.current);
+        }
+        setNextReminder(null);
+        setTimeRemaining(null);
+    }
+}, [settings.isReminderActive, settings.interval, requestNotificationPermission, scheduleReminder]);
+  
+  const handleQuickSchedule = useCallback((interval: number) => {
+    setSettings(s => ({ ...s, interval }));
+    toast({
+      title: "Intervalo atualizado!",
+      description: `Lembretes definidos para cada ${interval} minutos.`,
+    });
+  }, [toast]);
+    
+  // This effect handles re-scheduling if settings change, or on initial load.
+  useEffect(() => {
+    if (!isMounted) return;
+
+    if (settings.isReminderActive) {
+      const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : 0;
+      let nextTime;
+      
+      if (lastDrinkTime > 0) {
+        // If there are logs, schedule relative to the last log
+        nextTime = lastDrinkTime + settings.interval * 60 * 1000;
+      } else {
+        // If no logs, schedule from now
+        nextTime = Date.now() + settings.interval * 60 * 1000;
+      }
+
+      // We should only re-schedule if there's no active reminder or if the new time is different
+      if (!nextReminder || nextReminder !== nextTime) {
+          scheduleReminder(nextTime);
+      }
+    } else {
+        // Reminders are off, clear any timeout
+        if (reminderTimeoutRef.current) {
+            clearTimeout(reminderTimeoutRef.current);
+        }
+        setNextReminder(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.isReminderActive, settings.interval, isMounted, drinkLogs]);
 
 
    useEffect(() => {
@@ -581,6 +625,11 @@ export default function Home() {
     const formattedTime = formatTimeRemaining(timeRemaining);
     if (timeRemaining && timeRemaining > 0) {
       return `Próximo lembrete em: ${formattedTime}`;
+    }
+    
+    // Check if a reminder is pending but not yet fired
+    if(nextReminder && nextReminder > Date.now()){
+        return `Próximo lembrete em: ${formattedTime}`;
     }
 
     return "Hora de beber água! Clique em 'Já bebi água!' para reiniciar.";
