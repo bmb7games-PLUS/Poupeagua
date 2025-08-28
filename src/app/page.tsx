@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -468,7 +469,11 @@ export default function Home() {
       }
     }
 
-    // Play sound and show notification
+    // Play sound, vibrate, and show notification
+    if (settings.vibrate && 'vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200]);
+    }
+
     if (Notification.permission === 'granted') {
       playNotificationSound();
       
@@ -477,9 +482,7 @@ export default function Home() {
         icon: '/icon.png',
         silent: settings.sound === 'silencioso',
       };
-      if (settings.vibrate && 'vibrate' in navigator) {
-          notificationOptions.vibrate = [200, 100, 200];
-      }
+      
       new Notification('Waterful: Hora de beber água! 💧', notificationOptions);
     }
     
