@@ -318,84 +318,89 @@ export default function Home() {
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const { toast } = useToast();
   const reminderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  const showReminder = useCallback(() => {
-    const now = new Date();
-    if (settings.respectSleepTime) {
-      const [sleepH, sleepM] = settings.sleepTime.split(':').map(Number);
-      const [wakeH, wakeM] = settings.wakeTime.split(':').map(Number);
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      const sleepMinutes = sleepH * 60 + sleepM;
-      const wakeMinutes = wakeH * 60 + wakeM;
 
-      let isSleepTime = false;
-      if (sleepMinutes > wakeMinutes) {
-        if (currentMinutes >= sleepMinutes || currentMinutes < wakeMinutes) isSleepTime = true;
-      } else {
-        if (currentMinutes >= sleepMinutes && currentMinutes < wakeMinutes) isSleepTime = true;
-      }
-      if (isSleepTime) {
-        return; // Stop reminders during sleep time
-      }
-    }
-
-    if (settings.vibrate && 'vibrate' in navigator) {
-        navigator.vibrate([200, 100, 200]);
-    }
-
-    if ('serviceWorker' in navigator && Notification.permission === 'granted') {
-        try {
-            navigator.serviceWorker.ready.then(registration => {
-              registration.showNotification('Não poupe àgua: Hora de beber água! 💧', {
-                  body: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
-                  icon: '/icon.png',
-                  silent: !settings.sound,
-                  vibrate: settings.vibrate ? [200, 100, 200] : [],
-              });
-            });
-        } catch (e) {
-            console.error('Error showing notification via Service Worker', e);
-             toast({
-                title: 'Hora de beber água! 💧',
-                description: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
-            });
-        }
-    } else {
-        toast({
-            title: 'Hora de beber água! 💧',
-            description: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
-        });
-    }
-    
-  }, [settings, toast]);
-  
   const scheduleReminder = useCallback(() => {
-      if (reminderTimeoutRef.current) {
-          clearTimeout(reminderTimeoutRef.current);
+    if (reminderTimeoutRef.current) {
+        clearTimeout(reminderTimeoutRef.current);
+    }
+
+    const showReminder = () => {
+      const now = new Date();
+      if (settings.respectSleepTime) {
+        const [sleepH, sleepM] = settings.sleepTime.split(':').map(Number);
+        const [wakeH, wakeM] = settings.wakeTime.split(':').map(Number);
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+        const sleepMinutes = sleepH * 60 + sleepM;
+        const wakeMinutes = wakeH * 60 + wakeM;
+  
+        let isSleepTime = false;
+        if (sleepMinutes > wakeMinutes) {
+          if (currentMinutes >= sleepMinutes || currentMinutes < wakeMinutes) isSleepTime = true;
+        } else {
+          if (currentMinutes >= sleepMinutes && currentMinutes < wakeMinutes) isSleepTime = true;
+        }
+        if (isSleepTime) {
+          // Instead of returning, schedule it for after wake time
+          const wakeUpTime = new Date();
+          wakeUpTime.setHours(wakeH, wakeM, 0, 0);
+          if (now.getTime() > wakeUpTime.getTime()) {
+             wakeUpTime.setDate(wakeUpTime.getDate() + 1);
+          }
+          const delay = wakeUpTime.getTime() - now.getTime();
+          reminderTimeoutRef.current = setTimeout(() => {
+              scheduleReminder();
+          }, delay);
+          setNextReminder(wakeUpTime.getTime());
+          return;
+        }
       }
-
-      const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : Date.now();
-      const nextTime = lastDrinkTime + settings.interval * 60 * 1000;
-      
-      setNextReminder(nextTime);
-
-      const delay = nextTime - Date.now();
-
-      const triggerReminder = () => {
-          showReminder();
-          // Schedule the *next* reminder automatically
-          scheduleReminder();
-      };
-      
-      if (delay > 0) {
-          reminderTimeoutRef.current = setTimeout(triggerReminder, delay);
+  
+      if (settings.vibrate && 'vibrate' in navigator) {
+          navigator.vibrate([200, 100, 200]);
+      }
+  
+      if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+          try {
+              navigator.serviceWorker.ready.then(registration => {
+                registration.showNotification('Não poupe àgua: Hora de beber água! 💧', {
+                    body: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
+                    icon: '/icon.png',
+                    silent: !settings.sound,
+                    vibrate: settings.vibrate ? [200, 100, 200] : [],
+                });
+              });
+          } catch (e) {
+              console.error('Error showing notification via Service Worker', e);
+               toast({
+                  title: 'Hora de beber água! 💧',
+                  description: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
+              });
+          }
       } else {
-          // If the calculated time is in the past, show reminder immediately
-          // and schedule the next one based on the current time.
-          showReminder();
-          scheduleReminder();
+          toast({
+              title: 'Hora de beber água! 💧',
+              description: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
+          });
       }
-  }, [drinkLogs, settings.interval, showReminder]);
+      
+      // After showing, schedule the next one
+      scheduleReminder();
+    };
+
+
+    const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : Date.now();
+    const nextTime = lastDrinkTime + settings.interval * 60 * 1000;
+    
+    setNextReminder(nextTime);
+
+    const delay = nextTime - Date.now();
+    
+    if (delay > 0) {
+        reminderTimeoutRef.current = setTimeout(showReminder, delay);
+    } else {
+        showReminder();
+    }
+  }, [drinkLogs, settings, toast]);
 
   useEffect(() => {
     if (settings.isReminderActive) {
