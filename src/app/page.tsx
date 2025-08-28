@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -197,106 +198,107 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, 
     );
 
     return (
-    <div className="space-y-6 p-4">
-        <div>
-            <h3 className={cn("text-lg font-medium flex items-center gap-2 mb-4", !isSidebarVisible && "justify-center")}>
-              <TooltipProvider delayDuration={100}>
-                  <Tooltip>
-                      <TooltipTrigger><Settings className="text-accent" /></TooltipTrigger>
-                      {!isSidebarVisible && <TooltipContent side="right"><p>Configurações</p></TooltipContent>}
-                  </Tooltip>
-              </TooltipProvider>
-              <span className={cn(isSidebarVisible ? 'inline' : 'hidden')}>Configurações</span>
-            </h3>
+    <div className="flex flex-col h-full">
+        <div className="flex-1 space-y-6 p-4 overflow-y-auto">
+            <div>
+                <h3 className={cn("text-lg font-medium flex items-center gap-2 mb-4", !isSidebarVisible && "justify-center")}>
+                <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                        <TooltipTrigger><Settings className="text-accent" /></TooltipTrigger>
+                        {!isSidebarVisible && <TooltipContent side="right"><p>Configurações</p></TooltipContent>}
+                    </Tooltip>
+                </TooltipProvider>
+                <span className={cn(isSidebarVisible ? 'inline' : 'hidden')}>Configurações</span>
+                </h3>
 
-            <div className={cn("space-y-2 mb-6", !isSidebarVisible && "hidden")}>
-                <Button 
-                    className="w-full" 
-                    onClick={handleToggleReminders}
-                    variant={settings.isReminderActive ? "destructive" : "default"}
-                    >
-                    <Bell className="mr-2 h-5 w-5"/>
-                    {settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes"}
-                </Button>
-            </div>
-
-            <div className="space-y-6">
-                <div className="space-y-2">
-                    {renderLabel(<Clock />, "Intervalo de Lembrete", "Intervalo de Lembrete")}
-                    <div className={cn(!isSidebarVisible && "hidden")}>
-                      <Select
-                          value={String(settings.interval)}
-                          onValueChange={value => setSettings(s => ({ ...s, interval: Number(value) }))}
-                      >
-                          <SelectTrigger id="interval"><SelectValue placeholder="Selecione o intervalo" /></SelectTrigger>
-                          <SelectContent>
-                              <SelectItem value="15">A cada 15 minutos</SelectItem>
-                              <SelectItem value="30">A cada 30 minutos</SelectItem>
-                              <SelectItem value="45">A cada 45 minutos</SelectItem>
-                              <SelectItem value="60">A cada 1 hora</SelectItem>
-                              <SelectItem value="90">A cada 1.5 horas</SelectItem>
-                              <SelectItem value="120">A cada 2 horas</SelectItem>
-                          </SelectContent>
-                      </Select>
-                    </div>
-                </div>
-
-                <div className="space-y-2">
-                    {renderLabel(<Zap/>, "Agendamentos Rápidos", "Agendamentos Rápidos")}
-                     <div className={cn("flex flex-nowrap gap-2", !isSidebarVisible && "hidden")}>
-                        <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(30)} className="flex-1">Trabalho</Button>
-                        <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(60)} className="flex-1">Fim de Semana</Button>
-                        <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(20)} className="flex-1">Exercício</Button>
-                    </div>
-                </div>
-
-                <div className="space-y-2">
-                    {renderLabel(<Bell />, "Som de Alerta", "Som de Alerta")}
-                     <div className={cn(!isSidebarVisible && "hidden")}>
-                      <Select
-                          value={settings.sound}
-                          onValueChange={handleSoundChange}
-                      >
-                          <SelectTrigger id="sound"><SelectValue placeholder="Selecione o som" /></SelectTrigger>
-                          <SelectContent>
-                              <SelectItem value="drop">Gota</SelectItem>
-                              <SelectItem value="gentle">Suave</SelectItem>
-                              <SelectItem value="bell">Sino</SelectItem>
-                              <SelectItem value="silencioso">Silencioso</SelectItem>
-                          </SelectContent>
-                      </Select>
-                     </div>
-                </div>
-
-                 <div className="space-y-4">
-                    <div className={cn("flex items-center justify-between", !isSidebarVisible && "flex-col gap-2 items-center")}>
-                        <Label htmlFor="vibrate-mode" className="flex items-center gap-2 cursor-pointer">
-                            <Vibrate />
-                            <span className={cn(isSidebarVisible ? 'inline' : 'hidden', !isSidebarVisible && 'block text-xs mt-1')}>Vibrar</span>
-                        </Label>
-                        <Switch id="vibrate-mode" checked={settings.vibrate} onCheckedChange={checked => setSettings(s => ({...s, vibrate: checked}))}/>
-                    </div>
-                    <div className={cn("flex items-center justify-between", !isSidebarVisible && "flex-col gap-2 items-center")}>
-                        <Label htmlFor="sleep-mode" className="flex items-center gap-2 cursor-pointer">
-                           <Moon />
-                           <span className={cn(isSidebarVisible ? 'inline' : 'hidden', !isSidebarVisible && 'block text-xs mt-1')}>Modo Sono</span>
-                        </Label>
-                        <Switch id="sleep-mode" checked={settings.respectSleepTime} onCheckedChange={checked => setSettings(s => ({...s, respectSleepTime: checked}))}/>
-                    </div>
-                    {settings.respectSleepTime && (
-                      <div className={cn("grid grid-cols-2 gap-4", !isSidebarVisible && "hidden")}>
-                        <div>
-                          <Label htmlFor="wake-time"><Sun className="inline-block mr-1 h-4 w-4"/> Acordar</Label>
-                          <Input id="wake-time" type="time" value={settings.wakeTime} onChange={e => setSettings(s => ({ ...s, wakeTime: e.target.value }))} />
+                <div className="space-y-6">
+                    <div className="space-y-2">
+                        {renderLabel(<Clock />, "Intervalo de Lembrete", "Intervalo de Lembrete")}
+                        <div className={cn(!isSidebarVisible && "hidden")}>
+                        <Select
+                            value={String(settings.interval)}
+                            onValueChange={value => setSettings(s => ({ ...s, interval: Number(value) }))}
+                        >
+                            <SelectTrigger id="interval"><SelectValue placeholder="Selecione o intervalo" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="15">A cada 15 minutos</SelectItem>
+                                <SelectItem value="30">A cada 30 minutos</SelectItem>
+                                <SelectItem value="45">A cada 45 minutos</SelectItem>
+                                <SelectItem value="60">A cada 1 hora</SelectItem>
+                                <SelectItem value="90">A cada 1.5 horas</SelectItem>
+                                <SelectItem value="120">A cada 2 horas</SelectItem>
+                            </SelectContent>
+                        </Select>
                         </div>
-                         <div>
-                          <Label htmlFor="sleep-time"><Moon className="inline-block mr-1 h-4 w-4"/> Dormir</Label>
-                          <Input id="sleep-time" type="time" value={settings.sleepTime} onChange={e => setSettings(s => ({ ...s, sleepTime: e.target.value }))} />
+                    </div>
+
+                    <div className="space-y-2">
+                        {renderLabel(<Zap/>, "Agendamentos Rápidos", "Agendamentos Rápidos")}
+                        <div className={cn("flex flex-nowrap gap-2", !isSidebarVisible && "hidden")}>
+                            <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(30)} className="flex-1">Trabalho</Button>
+                            <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(60)} className="flex-1">Fim de Semana</Button>
+                            <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(20)} className="flex-1">Exercício</Button>
                         </div>
-                      </div>
-                    )}
+                    </div>
+
+                    <div className="space-y-2">
+                        {renderLabel(<Bell />, "Som de Alerta", "Som de Alerta")}
+                        <div className={cn(!isSidebarVisible && "hidden")}>
+                        <Select
+                            value={settings.sound}
+                            onValueChange={handleSoundChange}
+                        >
+                            <SelectTrigger id="sound"><SelectValue placeholder="Selecione o som" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="drop">Gota</SelectItem>
+                                <SelectItem value="gentle">Suave</SelectItem>
+                                <SelectItem value="bell">Sino</SelectItem>
+                                <SelectItem value="silencioso">Silencioso</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className={cn("flex items-center justify-between", !isSidebarVisible && "flex-col gap-2 items-center")}>
+                            <Label htmlFor="vibrate-mode" className="flex items-center gap-2 cursor-pointer">
+                                <Vibrate />
+                                <span className={cn(isSidebarVisible ? 'inline' : 'hidden', !isSidebarVisible && 'block text-xs mt-1')}>Vibrar</span>
+                            </Label>
+                            <Switch id="vibrate-mode" checked={settings.vibrate} onCheckedChange={checked => setSettings(s => ({...s, vibrate: checked}))}/>
+                        </div>
+                        <div className={cn("flex items-center justify-between", !isSidebarVisible && "flex-col gap-2 items-center")}>
+                            <Label htmlFor="sleep-mode" className="flex items-center gap-2 cursor-pointer">
+                            <Moon />
+                            <span className={cn(isSidebarVisible ? 'inline' : 'hidden', !isSidebarVisible && 'block text-xs mt-1')}>Modo Sono</span>
+                            </Label>
+                            <Switch id="sleep-mode" checked={settings.respectSleepTime} onCheckedChange={checked => setSettings(s => ({...s, respectSleepTime: checked}))}/>
+                        </div>
+                        {settings.respectSleepTime && (
+                        <div className={cn("grid grid-cols-2 gap-4", !isSidebarVisible && "hidden")}>
+                            <div>
+                            <Label htmlFor="wake-time"><Sun className="inline-block mr-1 h-4 w-4"/> Acordar</Label>
+                            <Input id="wake-time" type="time" value={settings.wakeTime} onChange={e => setSettings(s => ({ ...s, wakeTime: e.target.value }))} />
+                            </div>
+                            <div>
+                            <Label htmlFor="sleep-time"><Moon className="inline-block mr-1 h-4 w-4"/> Dormir</Label>
+                            <Input id="sleep-time" type="time" value={settings.sleepTime} onChange={e => setSettings(s => ({ ...s, sleepTime: e.target.value }))} />
+                            </div>
+                        </div>
+                        )}
+                    </div>
                 </div>
             </div>
+        </div>
+        <div className={cn("p-4 border-t border-border", !isSidebarVisible && "hidden")}>
+            <Button 
+                className="w-full" 
+                onClick={handleToggleReminders}
+                variant={settings.isReminderActive ? "destructive" : "default"}
+                >
+                <Bell className="mr-2 h-5 w-5"/>
+                {settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes"}
+            </Button>
         </div>
     </div>
     );
@@ -314,6 +316,7 @@ export default function Home() {
   const { toast } = useToast();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const reminderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
 
   const playSound = useCallback((soundName: string) => {
     if (soundName === 'silencioso') return;
@@ -399,30 +402,40 @@ export default function Home() {
     if (reminderTimeoutRef.current) {
       clearTimeout(reminderTimeoutRef.current);
     }
-
+    
     const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : Date.now();
     const nextTime = lastDrinkTime + settings.interval * 60 * 1000;
-    const now = Date.now();
-    const delay = nextTime - now;
     
     setNextReminder(nextTime);
+    const delay = nextTime - Date.now();
 
     if (delay > 0) {
       reminderTimeoutRef.current = setTimeout(() => {
-        showReminder();
-        scheduleReminder(); 
+        if (settings.isReminderActive) {
+            showReminder();
+            scheduleReminder(); 
+        }
       }, delay);
     } else {
-      showReminder();
-      reminderTimeoutRef.current = setTimeout(() => {
-        scheduleReminder();
-      }, settings.interval * 60 * 1000);
+        if (settings.isReminderActive) {
+            showReminder();
+            reminderTimeoutRef.current = setTimeout(() => {
+                scheduleReminder();
+            }, settings.interval * 60 * 1000);
+        }
     }
-  }, [drinkLogs, settings.interval, showReminder]);
+  }, [drinkLogs, settings.interval, settings.isReminderActive, showReminder]);
 
   const handleToggleReminders = useCallback(() => {
-    setSettings(s => ({ ...s, isReminderActive: !s.isReminderActive }));
-  }, []);
+    setSettings(currentSettings => {
+        const newIsReminderActive = !currentSettings.isReminderActive;
+        if (newIsReminderActive) {
+            scheduleReminder();
+        }
+        return { ...currentSettings, isReminderActive: newIsReminderActive };
+    });
+  }, [scheduleReminder]);
+
 
   useEffect(() => {
     if (settings.isReminderActive) {
@@ -430,11 +443,12 @@ export default function Home() {
     } else {
       if (reminderTimeoutRef.current) {
         clearTimeout(reminderTimeoutRef.current);
-        reminderTimeoutref.current = null;
+        reminderTimeoutRef.current = null;
       }
       setNextReminder(null);
     }
   }, [settings.isReminderActive, scheduleReminder]);
+
 
   const requestNotificationPermission = useCallback(async () => {
     if (!('Notification' in window)) {
@@ -482,7 +496,8 @@ export default function Home() {
     } catch (error) {
       console.error("Failed to parse from localStorage", error);
     }
-  }, []);
+    requestNotificationPermission();
+  }, [requestNotificationPermission]);
 
   // Save logs to localStorage
   useEffect(() => {
@@ -539,7 +554,7 @@ export default function Home() {
       description: "Excelente! O cronômetro foi reiniciado.",
       duration: 3000,
     });
-    if (settings.isReminderActive) {
+     if (settings.isReminderActive) {
       scheduleReminder();
     }
   }, [toast, settings.isReminderActive, scheduleReminder]);
@@ -620,7 +635,7 @@ export default function Home() {
     <div className="flex h-screen font-body bg-background">
       {/* Sidebar para desktop */}
        <aside className={cn(
-        "hidden lg:block border-r border-border overflow-y-auto transition-all duration-300 ease-in-out",
+        "hidden lg:flex flex-col border-r border-border transition-all duration-300 ease-in-out",
         isSidebarVisible ? "w-80" : "w-24"
       )}>
         <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={isSidebarVisible} handleToggleReminders={handleToggleReminders}/>
