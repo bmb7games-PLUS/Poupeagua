@@ -191,9 +191,8 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, isSidebarVi
 
     return (
         <div className="flex flex-col h-full">
-            <div className="flex-1 p-4 space-y-6 overflow-y-auto">
-                <div>
-                    <h3 className={cn("text-lg font-medium flex items-center gap-2 mb-4", !isSidebarVisible && "justify-center")}>
+            <div className="p-4 border-b">
+                <h3 className={cn("text-lg font-medium flex items-center gap-2", !isSidebarVisible && "justify-center")}>
                     <TooltipProvider delayDuration={100}>
                         <Tooltip>
                             <TooltipTrigger><Settings className="text-accent" /></TooltipTrigger>
@@ -201,74 +200,108 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, isSidebarVi
                         </Tooltip>
                     </TooltipProvider>
                     <span className={cn(isSidebarVisible ? 'inline' : 'hidden')}>Configurações</span>
-                    </h3>
-
-                    <div className="space-y-6">
-                        <div className="space-y-2">
-                            {renderLabel(<Clock />, "Intervalo de Lembrete (minutos)", "Intervalo de Lembrete (minutos)")}
-                            <div className={cn("relative", !isSidebarVisible && "hidden")}>
-                              <Input
-                                  id="interval"
-                                  type="number"
-                                  value={settings.interval}
-                                  onChange={e => {
-                                      const value = e.target.value === '' ? 0 : Number(e.target.value);
-                                      if (value >= 0) {
-                                        setSettings(s => ({ ...s, interval: value }));
-                                      }
-                                  }}
-                                  className="w-full"
-                                  placeholder="Ex: 30"
-                              />
-                            </div>
+                </h3>
+            </div>
+            <div className="flex-1 p-4 space-y-6 overflow-y-auto">
+                <div className="space-y-6">
+                    <div className="space-y-2">
+                        {renderLabel(<Clock />, "Intervalo de Lembrete (minutos)", "Intervalo de Lembrete (minutos)")}
+                        <div className={cn("relative", !isSidebarVisible && "hidden")}>
+                          <Input
+                              id="interval"
+                              type="number"
+                              value={settings.interval}
+                              onChange={e => {
+                                  const value = e.target.value === '' ? 0 : Number(e.target.value);
+                                  if (value >= 0) {
+                                    setSettings(s => ({ ...s, interval: value }));
+                                  }
+                              }}
+                              className="w-full"
+                              placeholder="Ex: 30"
+                          />
                         </div>
+                    </div>
 
-                        <div className="space-y-2">
-                            {renderLabel(<Zap/>, "Agendamentos Rápidos", "Agendamentos Rápidos")}
-                            <div className={cn("flex flex-nowrap gap-2", !isSidebarVisible && "hidden")}>
-                                <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(30)} className="flex-1">Trabalho</Button>
-                                <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(60)} className="flex-1">Fim de Semana</Button>
-                                <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(20)} className="flex-1">Exercício</Button>
-                            </div>
+                    <div className="space-y-2">
+                        {renderLabel(<Zap/>, "Agendamentos Rápidos", "Agendamentos Rápidos")}
+                        <div className={cn("flex flex-nowrap gap-2", !isSidebarVisible && "hidden")}>
+                            <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(30)} className="flex-1">Trabalho</Button>
+                            <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(60)} className="flex-1">Fim de Semana</Button>
+                            <Button variant="outline" size="sm" onClick={() => handleQuickSchedule(20)} className="flex-1">Exercício</Button>
                         </div>
+                    </div>
 
-                        <div className="space-y-4">
-                            <div className={cn("flex items-center justify-between", !isSidebarVisible && "flex-col gap-2 items-center")}>
-                                <Label htmlFor="sound-mode" className="flex items-center gap-2 cursor-pointer">
-                                    <Volume2 />
-                                    <span className={cn(isSidebarVisible ? 'inline' : 'hidden', !isSidebarVisible && 'block text-xs mt-1')}>Som de Alerta</span>
-                                </Label>
-                                <Switch id="sound-mode" checked={settings.sound} onCheckedChange={checked => setSettings(s => ({...s, sound: checked}))}/>
-                            </div>
-                            <div className={cn("flex items-center justify-between", !isSidebarVisible && "flex-col gap-2 items-center")}>
-                                <Label htmlFor="vibrate-mode" className="flex items-center gap-2 cursor-pointer">
-                                    <Vibrate />
-                                    <span className={cn(isSidebarVisible ? 'inline' : 'hidden', !isSidebarVisible && 'block text-xs mt-1')}>Vibrar</span>
-                                </Label>
-                                <Switch id="vibrate-mode" checked={settings.vibrate} onCheckedChange={checked => setSettings(s => ({...s, vibrate: checked}))}/>
-                            </div>
-                            <div className={cn("flex items-center justify-between", !isSidebarVisible && "flex-col gap-2 items-center")}>
-                                <Label htmlFor="sleep-mode" className="flex items-center gap-2 cursor-pointer">
-                                <Moon />
-                                <span className={cn(isSidebarVisible ? 'inline' : 'hidden', !isSidebarVisible && 'block text-xs mt-1')}>Modo Sono</span>
-                                </Label>
-                                <Switch id="sleep-mode" checked={settings.respectSleepTime} onCheckedChange={checked => setSettings(s => ({...s, respectSleepTime: checked}))}/>
-                            </div>
-                             <div className={cn("space-y-4", !settings.respectSleepTime && "hidden", !isSidebarVisible && "hidden")}>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                    <Label htmlFor="wake-time"><Sun className="inline-block mr-1 h-4 w-4"/> Acordar</Label>
-                                    <Input id="wake-time" type="time" value={settings.wakeTime} onChange={e => setSettings(s => ({ ...s, wakeTime: e.target.value }))} />
-                                    </div>
-                                    <div>
-                                    <Label htmlFor="sleep-time"><Moon className="inline-block mr-1 h-4 w-4"/> Dormir</Label>
-                                    <Input id="sleep-time" type="time" value={settings.sleepTime} onChange={e => setSettings(s => ({ ...s, sleepTime: e.target.value }))} />
-                                    </div>
+                    <div className="space-y-4">
+                        <TooltipProvider delayDuration={100}>
+                          <div className={cn("flex items-center justify-between", !isSidebarVisible && "flex-col gap-2 items-center")}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Label htmlFor="sound-mode" className="flex items-center gap-2 cursor-pointer">
+                                      <Volume2 />
+                                      <span className={cn(isSidebarVisible ? 'inline' : 'hidden', !isSidebarVisible && 'sr-only')}>Som de Alerta</span>
+                                  </Label>
+                                </TooltipTrigger>
+                                {!isSidebarVisible && <TooltipContent side="right"><p>Som de Alerta</p></TooltipContent>}
+                              </Tooltip>
+                              <Switch id="sound-mode" checked={settings.sound} onCheckedChange={checked => setSettings(s => ({...s, sound: checked}))}/>
+                          </div>
+                          <div className={cn("flex items-center justify-between", !isSidebarVisible && "flex-col gap-2 items-center")}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Label htmlFor="vibrate-mode" className="flex items-center gap-2 cursor-pointer">
+                                      <Vibrate />
+                                      <span className={cn(isSidebarVisible ? 'inline' : 'hidden', !isSidebarVisible && 'sr-only')}>Vibrar</span>
+                                  </Label>
+                                </TooltipTrigger>
+                                {!isSidebarVisible && <TooltipContent side="right"><p>Vibrar</p></TooltipContent>}
+                              </Tooltip>
+                              <Switch id="vibrate-mode" checked={settings.vibrate} onCheckedChange={checked => setSettings(s => ({...s, vibrate: checked}))}/>
+                          </div>
+                          <div className={cn("flex items-center justify-between", !isSidebarVisible && "flex-col gap-2 items-center")}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Label htmlFor="sleep-mode" className="flex items-center gap-2 cursor-pointer">
+                                    <Moon />
+                                    <span className={cn(isSidebarVisible ? 'inline' : 'hidden', !isSidebarVisible && 'sr-only')}>Modo Sono</span>
+                                  </Label>
+                                </TooltipTrigger>
+                                {!isSidebarVisible && <TooltipContent side="right"><p>Modo Sono</p></TooltipContent>}
+                              </Tooltip>
+                              <Switch id="sleep-mode" checked={settings.respectSleepTime} onCheckedChange={checked => setSettings(s => ({...s, respectSleepTime: checked}))}/>
+                          </div>
+                        </TooltipProvider>
+                         <div className={cn("space-y-4", !settings.respectSleepTime && "hidden", !isSidebarVisible && "hidden")}>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                <Label htmlFor="wake-time"><Sun className="inline-block mr-1 h-4 w-4"/> Acordar</Label>
+                                <Input id="wake-time" type="time" value={settings.wakeTime} onChange={e => setSettings(s => ({ ...s, wakeTime: e.target.value }))} />
+                                </div>
+                                <div>
+                                <Label htmlFor="sleep-time"><Moon className="inline-block mr-1 h-4 w-4"/> Dormir</Label>
+                                <Input id="sleep-time" type="time" value={settings.sleepTime} onChange={e => setSettings(s => ({ ...s, sleepTime: e.target.value }))} />
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
+            <div className="p-4 border-t mt-auto">
+                <Button 
+                    className="w-full" 
+                    onClick={() => setSettings(s => ({ ...s, isReminderActive: !s.isReminderActive }))}
+                    variant={settings.isReminderActive ? "destructive" : "default"}
+                    >
+                    <Bell className="mr-2 h-5 w-5"/>
+                    <span className={cn(isSidebarVisible ? 'inline' : 'hidden')}>
+                      {settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes"}
+                    </span>
+                     {!isSidebarVisible && (
+                        <span className="sr-only">
+                            {settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes"}
+                        </span>
+                    )}
+                </Button>
             </div>
         </div>
     );
@@ -337,56 +370,50 @@ export default function Home() {
   }, [settings, toast]);
   
   const scheduleReminder = useCallback(() => {
-    if (reminderTimeoutRef.current) {
-      clearTimeout(reminderTimeoutRef.current);
-    }
+      if (reminderTimeoutRef.current) {
+          clearTimeout(reminderTimeoutRef.current);
+      }
 
-    const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : Date.now();
-    const nextTime = lastDrinkTime + settings.interval * 60 * 1000;
-    
-    setNextReminder(nextTime);
+      const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : Date.now();
+      const nextTime = lastDrinkTime + settings.interval * 60 * 1000;
+      
+      setNextReminder(nextTime);
 
-    const delay = nextTime - Date.now();
+      const delay = nextTime - Date.now();
 
-    const triggerReminder = () => {
-      showReminder();
-      // Use a new timestamp for the log to trigger re-scheduling
-      const newLogTime = Date.now();
-      setDrinkLogs(prev => [...prev, { timestamp: newLogTime }]);
-    };
-
-    if (delay > 0) {
-      reminderTimeoutRef.current = setTimeout(triggerReminder, delay);
-    } else {
-      // If the calculated time is in the past, show reminder immediately
-      // and schedule the next one based on the current time.
-      triggerReminder();
-    }
+      const triggerReminder = () => {
+          showReminder();
+          // Schedule the *next* reminder automatically
+          scheduleReminder();
+      };
+      
+      if (delay > 0) {
+          reminderTimeoutRef.current = setTimeout(triggerReminder, delay);
+      } else {
+          // If the calculated time is in the past, show reminder immediately
+          // and schedule the next one based on the current time.
+          showReminder();
+          scheduleReminder();
+      }
   }, [drinkLogs, settings.interval, showReminder]);
 
-  const handleToggleReminders = useCallback(() => {
-    setSettings(currentSettings => {
-        const isActivating = !currentSettings.isReminderActive;
-        return { ...currentSettings, isReminderActive: isActivating };
-    });
-  }, []);
-  
   useEffect(() => {
-      if (settings.isReminderActive) {
-          scheduleReminder();
-      } else {
-          if (reminderTimeoutRef.current) {
-              clearTimeout(reminderTimeoutRef.current);
-              reminderTimeoutRef.current = null;
-          }
-          setNextReminder(null);
-          setTimeRemaining(null);
+    if (settings.isReminderActive) {
+      scheduleReminder();
+    } else {
+      if (reminderTimeoutRef.current) {
+        clearTimeout(reminderTimeoutRef.current);
+        reminderTimeoutRef.current = null;
       }
-      return () => {
-          if (reminderTimeoutRef.current) {
-              clearTimeout(reminderTimeoutRef.current);
-          }
-      };
+      setNextReminder(null);
+      setTimeRemaining(null);
+    }
+
+    return () => {
+      if (reminderTimeoutRef.current) {
+        clearTimeout(reminderTimeoutRef.current);
+      }
+    };
   }, [settings.isReminderActive, scheduleReminder]);
   
   const requestNotificationPermission = useCallback(async () => {
@@ -626,15 +653,6 @@ export default function Home() {
                 <Button size="lg" className="w-full sm:w-auto transform hover:scale-105 transition-transform" onClick={handleLogDrink}>
                   <WaterDropIcon className="mr-2 h-5 w-5" /> Já bebi água!
                 </Button>
-                <Button 
-                    size="lg"
-                    className="w-full sm:w-auto" 
-                    onClick={handleToggleReminders}
-                    variant={settings.isReminderActive ? "destructive" : "default"}
-                    >
-                    <Bell className="mr-2 h-5 w-5"/>
-                    {settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes"}
-                </Button>
               </CardFooter>
           </Card>
         </div>
@@ -642,5 +660,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
