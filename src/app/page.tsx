@@ -243,7 +243,7 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, 
                      <div className={cn(!isSidebarVisible && "hidden")}>
                       <Select
                           value={settings.sound}
-                          onValuechange={handleSoundChange}
+                          onValueChange={handleSoundChange}
                       >
                           <SelectTrigger id="sound"><SelectValue placeholder="Selecione o som" /></SelectTrigger>
                           <SelectContent>
@@ -258,9 +258,9 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, 
 
                  <div className="space-y-4">
                     <div className={cn("flex items-center justify-between", !isSidebarVisible && "flex-col gap-2 items-center")}>
-                         <Label htmlFor="vibrate-mode" className="flex items-center gap-2 cursor-pointer">
+                        <Label htmlFor="vibrate-mode" className="flex items-center gap-2 cursor-pointer">
                             <Vibrate />
-                             <span className={cn(isSidebarVisible ? 'inline' : 'hidden', !isSidebarVisible && 'block text-xs mt-1')}>Vibrar</span>
+                            <span className={cn(isSidebarVisible ? 'inline' : 'hidden', !isSidebarVisible && 'block text-xs mt-1')}>Vibrar</span>
                         </Label>
                         <Switch id="vibrate-mode" checked={settings.vibrate} onCheckedChange={checked => setSettings(s => ({...s, vibrate: checked}))}/>
                     </div>
@@ -332,10 +332,6 @@ export default function Home() {
     }
   }, [toast]);
   
-  const playNotificationSound = useCallback(() => {
-    playSound(settings.sound);
-  }, [settings.sound, playSound]);
-
   const showReminder = useCallback(async () => {
     const now = new Date();
     if (settings.respectSleepTime) {
@@ -360,7 +356,7 @@ export default function Home() {
         navigator.vibrate([200, 100, 200]);
     }
     
-    playNotificationSound();
+    playSound(settings.sound);
 
     if ('serviceWorker' in navigator && Notification.permission === 'granted') {
         try {
@@ -385,9 +381,7 @@ export default function Home() {
         });
     }
     
-    setNextReminder(null); 
-    setTimeRemaining(null);
-  }, [settings, playNotificationSound, toast]);
+  }, [settings, playSound, toast]);
 
  const scheduleReminder = useCallback(() => {
     if (reminderTimeoutRef.current) {
@@ -400,29 +394,58 @@ export default function Home() {
     const now = Date.now();
     const delay = nextTime - now;
 
-    if (delay > 0) {
-      setNextReminder(nextTime);
+    setNextReminder(nextTime);
+
+    if (delay <= 0) {
+      showReminder();
+      // After showing, schedule the next one from now
+      reminderTimeoutRef.current = setTimeout(scheduleReminder, settings.interval * 60 * 1000);
+    } else {
       reminderTimeoutRef.current = setTimeout(() => {
         showReminder();
         scheduleReminder(); 
       }, delay);
-    } else {
-       showReminder();
-       scheduleReminder();
     }
   }, [drinkLogs, settings.interval, showReminder]);
 
-  useEffect(() => {
-    if (settings.isReminderActive) {
+  const requestNotificationPermission = useCallback(async () => {
+    if (!('Notification' in window)) {
+        return 'denied';
+    }
+    if (Notification.permission === 'default') {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        toast({ title: "Notificações ativadas!", description: "Você será lembrado de beber água." });
+      } else {
+        toast({ title: "Notificações bloqueadas", description: "Não poderemos enviar lembretes.", variant: "destructive" });
+      }
+      return permission;
+    }
+    return Notification.permission;
+  }, [toast]);
+  
+  const handleToggleReminders = useCallback(async () => {
+    const willBeActive = !settings.isReminderActive;
+
+    if (willBeActive) {
+      const permission = await requestNotificationPermission();
+      if (permission !== 'granted') {
+        return;
+      }
+      setSettings(s => ({ ...s, isReminderActive: true }));
       scheduleReminder();
+      toast({ title: "Lembretes iniciados!" });
     } else {
       if (reminderTimeoutRef.current) {
         clearTimeout(reminderTimeoutRef.current);
+        reminderTimeoutRef.current = null;
       }
+      setSettings(s => ({ ...s, isReminderActive: false }));
       setNextReminder(null);
+      setTimeRemaining(null);
+      toast({ title: "Lembretes pausados." });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.isReminderActive]);
+}, [settings.isReminderActive, requestNotificationPermission, toast, scheduleReminder]);
   
   // Load settings and logs from localStorage
   useEffect(() => {
@@ -500,39 +523,6 @@ export default function Home() {
        scheduleReminder();
     }
   }, [settings.isReminderActive, toast, scheduleReminder]);
-
-  const requestNotificationPermission = useCallback(async () => {
-    if (!('Notification' in window)) {
-        return 'denied';
-    }
-    if (Notification.permission === 'default') {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        toast({ title: "Notificações ativadas!", description: "Você será lembrado de beber água." });
-      } else {
-        toast({ title: "Notificações bloqueadas", description: "Não poderemos enviar lembretes.", variant: "destructive" });
-      }
-      return permission;
-    }
-    return Notification.permission;
-  }, [toast]);
-  
-  const handleToggleReminders = useCallback(async () => {
-    const willBeActive = !settings.isReminderActive;
-
-    if (willBeActive) {
-      const permission = await requestNotificationPermission();
-      if (permission !== 'granted') {
-        return; 
-      }
-      toast({ title: "Lembretes iniciados!" });
-    } else {
-      toast({ title: "Lembretes pausados." });
-    }
-    
-    setSettings(s => ({ ...s, isReminderActive: willBeActive }));
-
-}, [settings.isReminderActive, requestNotificationPermission, toast]);
   
   const handleQuickSchedule = useCallback((interval: number) => {
     setSettings(s => ({ ...s, interval }));
@@ -540,7 +530,10 @@ export default function Home() {
       title: "Intervalo atualizado!",
       description: `Lembretes definidos para cada ${interval} minutos.`,
     });
-  }, [toast]);
+     if (settings.isReminderActive) {
+      scheduleReminder();
+    }
+  }, [toast, settings.isReminderActive, scheduleReminder]);
     
    useEffect(() => {
     let timerId: NodeJS.Timeout | null = null;
