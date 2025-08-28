@@ -213,22 +213,21 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, 
 
                     <div className="space-y-6">
                         <div className="space-y-2">
-                            {renderLabel(<Clock />, "Intervalo de Lembrete", "Intervalo de Lembrete")}
-                            <div className={cn(!isSidebarVisible && "hidden")}>
-                            <Select
-                                value={String(settings.interval)}
-                                onValueChange={value => setSettings(s => ({ ...s, interval: Number(value) }))}
-                            >
-                                <SelectTrigger id="interval"><SelectValue placeholder="Selecione o intervalo" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="15">A cada 15 minutos</SelectItem>
-                                    <SelectItem value="30">A cada 30 minutos</SelectItem>
-                                    <SelectItem value="45">A cada 45 minutos</SelectItem>
-                                    <SelectItem value="60">A cada 1 hora</SelectItem>
-                                    <SelectItem value="90">A cada 1.5 horas</SelectItem>
-                                    <SelectItem value="120">A cada 2 horas</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            {renderLabel(<Clock />, "Intervalo de Lembrete (minutos)", "Intervalo de Lembrete (minutos)")}
+                            <div className={cn("relative", !isSidebarVisible && "hidden")}>
+                              <Input
+                                  id="interval"
+                                  type="number"
+                                  value={settings.interval}
+                                  onChange={e => {
+                                      const value = e.target.value === '' ? 0 : Number(e.target.value);
+                                      if (value >= 0) {
+                                        setSettings(s => ({ ...s, interval: value }));
+                                      }
+                                  }}
+                                  className="w-full"
+                                  placeholder="Ex: 30"
+                              />
                             </div>
                         </div>
 
@@ -401,7 +400,8 @@ export default function Home() {
 
     const triggerReminder = () => {
       showReminder();
-      scheduleReminder(); // Reschedule for the next interval
+      // Reschedule for the next interval from now
+      setDrinkLogs(prev => [...prev, { timestamp: Date.now() }]);
     };
 
     if (delay > 0) {
@@ -412,10 +412,10 @@ export default function Home() {
     }
   }, [drinkLogs, settings.interval, showReminder]);
 
-
   const handleToggleReminders = useCallback(() => {
-    setSettings(currentSettings => ({ ...currentSettings, isReminderActive: !currentSettings.isReminderActive }));
-  }, []);
+    const isActivating = !settings.isReminderActive;
+    setSettings(currentSettings => ({ ...currentSettings, isReminderActive: isActivating }));
+  }, [settings.isReminderActive]);
   
   useEffect(() => {
     if (settings.isReminderActive) {
@@ -460,8 +460,7 @@ export default function Home() {
       const savedSettings = localStorage.getItem('waterful_settings');
       if (savedSettings) {
         const parsedSettings = JSON.parse(savedSettings);
-        // Avoid starting reminders on load if they were active, user should press start
-        setSettings(s => ({...s, ...parsedSettings, isReminderActive: false}));
+        setSettings(s => ({...s, ...parsedSettings}));
       }
 
       const savedLogs = localStorage.getItem('waterful_logs');
@@ -691,5 +690,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
