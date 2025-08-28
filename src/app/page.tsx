@@ -260,14 +260,14 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, 
                     <div className={cn("flex items-center justify-between", !isSidebarVisible && "flex-col gap-2 items-center")}>
                         <Label htmlFor="vibrate-mode" className="flex items-center gap-2 cursor-pointer">
                             <Vibrate />
-                            <span className={cn(isSidebarVisible ? 'inline' : 'hidden sm:inline')}>Vibrar</span>
+                            <span className={cn(isSidebarVisible ? 'inline' : 'hidden', !isSidebarVisible && 'block text-xs mt-1')}>Vibrar</span>
                         </Label>
                         <Switch id="vibrate-mode" checked={settings.vibrate} onCheckedChange={checked => setSettings(s => ({...s, vibrate: checked}))}/>
                     </div>
                     <div className={cn("flex items-center justify-between", !isSidebarVisible && "flex-col gap-2 items-center")}>
                         <Label htmlFor="sleep-mode" className="flex items-center gap-2 cursor-pointer">
                            <Moon />
-                           <span className={cn(isSidebarVisible ? 'inline' : 'hidden sm:inline')}>Modo Sono</span>
+                           <span className={cn(isSidebarVisible ? 'inline' : 'hidden', !isSidebarVisible && 'block text-xs mt-1')}>Modo Sono</span>
                         </Label>
                         <Switch id="sleep-mode" checked={settings.respectSleepTime} onCheckedChange={checked => setSettings(s => ({...s, respectSleepTime: checked}))}/>
                     </div>
@@ -425,13 +425,17 @@ export default function Home() {
     const willBeActive = !settings.isReminderActive;
     if (willBeActive) {
       const permission = await requestNotificationPermission();
-       if (permission !== 'granted') {
-         setSettings(s => ({ ...s, isReminderActive: false }));
-         return;
-       }
+      if (permission !== 'granted') {
+        setSettings(s => ({ ...s, isReminderActive: false }));
+        return;
+      }
+      if (!nextReminder || nextReminder <= Date.now()) {
+        const nextTime = Date.now() + settings.interval * 60 * 1000;
+        setNextReminder(nextTime);
+      }
     }
     setSettings(s => ({ ...s, isReminderActive: willBeActive }));
-  }, [settings.isReminderActive, requestNotificationPermission]);
+  }, [settings.isReminderActive, settings.interval, requestNotificationPermission, nextReminder]);
   
   const handleQuickSchedule = useCallback((interval: number) => {
     setSettings(s => ({ ...s, interval }));
@@ -496,33 +500,30 @@ export default function Home() {
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout | null = null;
-    
-    if (settings.isReminderActive) {
-      const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : Date.now();
-      const timeSinceLastDrink = Date.now() - lastDrinkTime;
-      const initialDelay = Math.max(0, (settings.interval * 60 * 1000) - timeSinceLastDrink);
-      
-      if(nextReminder && nextReminder > Date.now()){
-        const delay = nextReminder - Date.now();
-        timeoutId = setTimeout(showReminder, delay);
-      } else if (drinkLogs.length > 0) {
-        const reminderTime = lastDrinkTime + settings.interval * 60 * 1000;
-        if(reminderTime > Date.now()){
-            setNextReminder(reminderTime);
-        } else {
-            showReminder();
-        }
-      }
 
-      return () => {
-        if(timeoutId) clearTimeout(timeoutId);
-      };
-    } else {
-      setNextReminder(null);
-      setTimeRemaining(null);
+    if (settings.isReminderActive && nextReminder && nextReminder > Date.now()) {
+      const delay = nextReminder - Date.now();
+      timeoutId = setTimeout(showReminder, delay);
+    } else if (settings.isReminderActive && (!nextReminder || nextReminder <= Date.now())) {
+      // If reminders are on but there's no valid next reminder, check if we should show one now.
+      const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : 0;
+      if (lastDrinkTime > 0) {
+        const expectedReminderTime = lastDrinkTime + settings.interval * 60 * 1000;
+        if (Date.now() >= expectedReminderTime) {
+          showReminder();
+        } else {
+          setNextReminder(expectedReminderTime);
+        }
+      } else if (!nextReminder) {
+        // No drinks logged yet, reminders are on, schedule first one.
+         // This case is handled by handleToggleReminders, but as a fallback.
+      }
     }
 
-  }, [settings.isReminderActive, settings.interval, drinkLogs, showReminder, nextReminder]);
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [settings.isReminderActive, settings.interval, drinkLogs, nextReminder, showReminder]);
 
 
    useEffect(() => {
