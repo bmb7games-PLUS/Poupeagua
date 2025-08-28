@@ -4,13 +4,12 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from "@/hooks/use-toast"
 import { WaterDropIcon } from '@/components/icons';
-import { Clock, Moon, Sun, Bell, Droplets, Settings, Zap, Menu, Vibrate, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Clock, Moon, Sun, Bell, Droplets, Settings, Zap, Menu, Vibrate, ChevronLeft, ChevronRight, Volume2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Legend, XAxis, YAxis } from 'recharts';
@@ -28,7 +27,7 @@ type Settings = {
   respectSleepTime: boolean;
   sleepTime: string;
   wakeTime: string;
-  sound: string;
+  sound: boolean;
   vibrate: boolean;
 };
 
@@ -38,7 +37,7 @@ const DEFAULT_SETTINGS: Settings = {
   respectSleepTime: true,
   sleepTime: "22:00",
   wakeTime: "08:00",
-  sound: "drop",
+  sound: true,
   vibrate: true,
 };
 
@@ -170,14 +169,7 @@ const AppSkeleton = () => (
 );
 
 
-const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, isSidebarVisible }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, playSound: (sound: string) => void, isSidebarVisible: boolean }) => {
-    
-    const handleSoundChange = (soundName: string) => {
-        setSettings(s => ({ ...s, sound: soundName }));
-        if (soundName !== 'silencioso') {
-            playSound(soundName);
-        }
-    };
+const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, isSidebarVisible }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, isSidebarVisible: boolean }) => {
     
     const renderLabel = (icon: React.ReactNode, text: string, tooltipText: string) => (
       <TooltipProvider delayDuration={100}>
@@ -240,25 +232,14 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, 
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            {renderLabel(<Bell />, "Som de Alerta", "Som de Alerta")}
-                            <div className={cn(!isSidebarVisible && "hidden")}>
-                            <Select
-                                value={settings.sound}
-                                onValueChange={handleSoundChange}
-                            >
-                                <SelectTrigger id="sound"><SelectValue placeholder="Selecione o som" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="drop">Gota</SelectItem>
-                                    <SelectItem value="gentle">Suave</SelectItem>
-                                    <SelectItem value="bell">Sino</SelectItem>
-                                    <SelectItem value="silencioso">Silencioso</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            </div>
-                        </div>
-
                         <div className="space-y-4">
+                            <div className={cn("flex items-center justify-between", !isSidebarVisible && "flex-col gap-2 items-center")}>
+                                <Label htmlFor="sound-mode" className="flex items-center gap-2 cursor-pointer">
+                                    <Volume2 />
+                                    <span className={cn(isSidebarVisible ? 'inline' : 'hidden', !isSidebarVisible && 'block text-xs mt-1')}>Som de Alerta</span>
+                                </Label>
+                                <Switch id="sound-mode" checked={settings.sound} onCheckedChange={checked => setSettings(s => ({...s, sound: checked}))}/>
+                            </div>
                             <div className={cn("flex items-center justify-between", !isSidebarVisible && "flex-col gap-2 items-center")}>
                                 <Label htmlFor="vibrate-mode" className="flex items-center gap-2 cursor-pointer">
                                     <Vibrate />
@@ -303,37 +284,7 @@ export default function Home() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const { toast } = useToast();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const reminderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  const playSound = useCallback((soundName: string) => {
-    if (soundName === 'silencioso') return;
-
-    if (!audioRef.current) {
-        audioRef.current = new Audio();
-    }
-    const audio = audioRef.current;
-    const newSrc = `/${soundName}.mp3`;
-
-    if (!audio.src.endsWith(newSrc)) {
-        audio.src = newSrc;
-        audio.load();
-    }
-
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-        playPromise.catch(error => {
-            console.error("Audio playback failed:", error);
-            if (error.name === "NotAllowedError") {
-                toast({
-                    title: "Reprodução de áudio bloqueada",
-                    description: "A interação do usuário é necessária para tocar o som.",
-                    variant: "destructive",
-                });
-            }
-        });
-    }
-  }, [toast]);
   
   const showReminder = useCallback(() => {
     const now = new Date();
@@ -358,8 +309,6 @@ export default function Home() {
     if (settings.vibrate && 'vibrate' in navigator) {
         navigator.vibrate([200, 100, 200]);
     }
-    
-    playSound(settings.sound);
 
     if ('serviceWorker' in navigator && Notification.permission === 'granted') {
         try {
@@ -367,13 +316,13 @@ export default function Home() {
               registration.showNotification('Não poupe àgua: Hora de beber água! 💧', {
                   body: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
                   icon: '/icon.png',
-                  silent: settings.sound === 'silencioso',
+                  silent: !settings.sound,
                   vibrate: settings.vibrate ? [200, 100, 200] : [],
               });
             });
         } catch (e) {
             console.error('Error showing notification via Service Worker', e);
-            toast({
+             toast({
                 title: 'Hora de beber água! 💧',
                 description: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
             });
@@ -385,8 +334,8 @@ export default function Home() {
         });
     }
     
-  }, [settings, playSound, toast]);
-
+  }, [settings, toast]);
+  
   const scheduleReminder = useCallback(() => {
     if (reminderTimeoutRef.current) {
       clearTimeout(reminderTimeoutRef.current);
@@ -394,46 +343,50 @@ export default function Home() {
 
     const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : Date.now();
     const nextTime = lastDrinkTime + settings.interval * 60 * 1000;
-
+    
     setNextReminder(nextTime);
+
     const delay = nextTime - Date.now();
 
     const triggerReminder = () => {
       showReminder();
-      // Reschedule for the next interval from now
-      setDrinkLogs(prev => [...prev, { timestamp: Date.now() }]);
+      // Use a new timestamp for the log to trigger re-scheduling
+      const newLogTime = Date.now();
+      setDrinkLogs(prev => [...prev, { timestamp: newLogTime }]);
     };
 
     if (delay > 0) {
       reminderTimeoutRef.current = setTimeout(triggerReminder, delay);
     } else {
-      // If the calculated time is in the past, show reminder immediately and schedule next one.
+      // If the calculated time is in the past, show reminder immediately
+      // and schedule the next one based on the current time.
       triggerReminder();
     }
   }, [drinkLogs, settings.interval, showReminder]);
 
   const handleToggleReminders = useCallback(() => {
-    const isActivating = !settings.isReminderActive;
-    setSettings(currentSettings => ({ ...currentSettings, isReminderActive: isActivating }));
-  }, [settings.isReminderActive]);
+    setSettings(currentSettings => {
+        const isActivating = !currentSettings.isReminderActive;
+        return { ...currentSettings, isReminderActive: isActivating };
+    });
+  }, []);
   
   useEffect(() => {
-    if (settings.isReminderActive) {
-      scheduleReminder();
-    } else {
-      if (reminderTimeoutRef.current) {
-        clearTimeout(reminderTimeoutRef.current);
-        reminderTimeoutRef.current = null;
+      if (settings.isReminderActive) {
+          scheduleReminder();
+      } else {
+          if (reminderTimeoutRef.current) {
+              clearTimeout(reminderTimeoutRef.current);
+              reminderTimeoutRef.current = null;
+          }
+          setNextReminder(null);
+          setTimeRemaining(null);
       }
-      setNextReminder(null);
-      setTimeRemaining(null);
-    }
-    // Cleanup on unmount
-    return () => {
-       if (reminderTimeoutRef.current) {
-        clearTimeout(reminderTimeoutRef.current);
-      }
-    }
+      return () => {
+          if (reminderTimeoutRef.current) {
+              clearTimeout(reminderTimeoutRef.current);
+          }
+      };
   }, [settings.isReminderActive, scheduleReminder]);
   
   const requestNotificationPermission = useCallback(async () => {
@@ -613,7 +566,7 @@ export default function Home() {
         "hidden lg:flex flex-col border-r border-border transition-all duration-300 ease-in-out",
         isSidebarVisible ? "w-80" : "w-24"
       )}>
-        <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={isSidebarVisible} />
+        <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} isSidebarVisible={isSidebarVisible} />
       </aside>
 
       {/* Conteúdo Principal */}
@@ -651,7 +604,7 @@ export default function Home() {
                       <SheetHeader className="p-4 border-b">
                         <SheetTitle>Configurações</SheetTitle>
                       </SheetHeader>
-                      <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={true} />
+                      <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} isSidebarVisible={true} />
                   </SheetContent>
               </Sheet>
             </div>
@@ -686,7 +639,8 @@ export default function Home() {
           </Card>
         </div>
       </main>
-      <audio ref={audioRef} className="hidden" />
     </div>
   );
 }
+
+    
