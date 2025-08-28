@@ -170,7 +170,7 @@ const AppSkeleton = () => (
 );
 
 
-const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, isSidebarVisible, handleToggleReminders }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, playSound: (sound: string) => void, isSidebarVisible: boolean, handleToggleReminders: () => void }) => {
+const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, isSidebarVisible }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, playSound: (sound: string) => void, isSidebarVisible: boolean }) => {
     
     const handleSoundChange = (soundName: string) => {
         setSettings(s => ({ ...s, sound: soundName }));
@@ -290,16 +290,6 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, 
                     </div>
                 </div>
             </div>
-            <div className={cn("p-4 border-t border-border", !isSidebarVisible && "hidden")}>
-                <Button 
-                    className="w-full" 
-                    onClick={handleToggleReminders}
-                    variant={settings.isReminderActive ? "destructive" : "default"}
-                    >
-                    <Bell className="mr-2 h-5 w-5"/>
-                    {settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes"}
-                </Button>
-            </div>
         </div>
     );
 };
@@ -362,8 +352,7 @@ export default function Home() {
         if (currentMinutes >= sleepMinutes && currentMinutes < wakeMinutes) isSleepTime = true;
       }
       if (isSleepTime) {
-        setNextReminder(null); // Stop reminders during sleep time
-        return; 
+        return; // Stop reminders during sleep time
       }
     }
 
@@ -401,26 +390,25 @@ export default function Home() {
 
   const scheduleReminder = useCallback(() => {
     if (reminderTimeoutRef.current) {
-        clearTimeout(reminderTimeoutRef.current);
+      clearTimeout(reminderTimeoutRef.current);
     }
 
     const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : Date.now();
     const nextTime = lastDrinkTime + settings.interval * 60 * 1000;
-    
+
     setNextReminder(nextTime);
     const delay = nextTime - Date.now();
 
+    const triggerReminder = () => {
+      showReminder();
+      scheduleReminder(); // Reschedule for the next interval
+    };
+
     if (delay > 0) {
-        reminderTimeoutRef.current = setTimeout(() => {
-            showReminder();
-            scheduleReminder(); // Reschedule for the next interval
-        }, delay);
+      reminderTimeoutRef.current = setTimeout(triggerReminder, delay);
     } else {
-        // If the calculated time is in the past, show reminder immediately and schedule next one.
-        showReminder();
-        reminderTimeoutRef.current = setTimeout(() => {
-            scheduleReminder();
-        }, settings.interval * 60 * 1000);
+      // If the calculated time is in the past, show reminder immediately and schedule next one.
+      triggerReminder();
     }
   }, [drinkLogs, settings.interval, showReminder]);
 
@@ -434,15 +422,20 @@ export default function Home() {
       scheduleReminder();
     } else {
       if (reminderTimeoutRef.current) {
-          clearTimeout(reminderTimeoutRef.current);
-          reminderTimeoutRef.current = null;
+        clearTimeout(reminderTimeoutRef.current);
+        reminderTimeoutRef.current = null;
       }
       setNextReminder(null);
       setTimeRemaining(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Cleanup on unmount
+    return () => {
+       if (reminderTimeoutRef.current) {
+        clearTimeout(reminderTimeoutRef.current);
+      }
+    }
   }, [settings.isReminderActive, scheduleReminder]);
-
+  
   const requestNotificationPermission = useCallback(async () => {
     if (!('Notification' in window)) {
         return 'denied';
@@ -467,7 +460,8 @@ export default function Home() {
       const savedSettings = localStorage.getItem('waterful_settings');
       if (savedSettings) {
         const parsedSettings = JSON.parse(savedSettings);
-        setSettings(s => ({...s, ...parsedSettings}));
+        // Avoid starting reminders on load if they were active, user should press start
+        setSettings(s => ({...s, ...parsedSettings, isReminderActive: false}));
       }
 
       const savedLogs = localStorage.getItem('waterful_logs');
@@ -620,7 +614,7 @@ export default function Home() {
         "hidden lg:flex flex-col border-r border-border transition-all duration-300 ease-in-out",
         isSidebarVisible ? "w-80" : "w-24"
       )}>
-        <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={isSidebarVisible} handleToggleReminders={handleToggleReminders}/>
+        <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={isSidebarVisible} />
       </aside>
 
       {/* Conteúdo Principal */}
@@ -658,7 +652,7 @@ export default function Home() {
                       <SheetHeader className="p-4 border-b">
                         <SheetTitle>Configurações</SheetTitle>
                       </SheetHeader>
-                      <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={true} handleToggleReminders={handleToggleReminders}/>
+                      <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={true} />
                   </SheetContent>
               </Sheet>
             </div>
@@ -680,6 +674,15 @@ export default function Home() {
                 <Button size="lg" className="w-full sm:w-auto transform hover:scale-105 transition-transform" onClick={handleLogDrink}>
                   <WaterDropIcon className="mr-2 h-5 w-5" /> Já bebi água!
                 </Button>
+                <Button 
+                    size="lg"
+                    className="w-full sm:w-auto" 
+                    onClick={handleToggleReminders}
+                    variant={settings.isReminderActive ? "destructive" : "default"}
+                    >
+                    <Bell className="mr-2 h-5 w-5"/>
+                    {settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes"}
+                </Button>
               </CardFooter>
           </Card>
         </div>
@@ -688,3 +691,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
