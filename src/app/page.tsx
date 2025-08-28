@@ -336,6 +336,77 @@ export default function Home() {
     playSound(settings.sound);
   }, [settings.sound, playSound]);
 
+  const showReminder = useCallback(async () => {
+    const now = new Date();
+    if (settings.respectSleepTime) {
+      const [sleepH, sleepM] = settings.sleepTime.split(':').map(Number);
+      const [wakeH, wakeM] = settings.wakeTime.split(':').map(Number);
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const sleepMinutes = sleepH * 60 + sleepM;
+      const wakeMinutes = wakeH * 60 + wakeM;
+
+      let isSleepTime = false;
+      if (sleepMinutes > wakeMinutes) {
+        if (currentMinutes >= sleepMinutes || currentMinutes < wakeMinutes) isSleepTime = true;
+      } else {
+        if (currentMinutes >= sleepMinutes && currentMinutes < wakeMinutes) isSleepTime = true;
+      }
+      if (isSleepTime) {
+        return; 
+      }
+    }
+
+    if (settings.vibrate && 'vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200]);
+    }
+    
+    playNotificationSound();
+
+    if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        registration.showNotification('Não poupe àgua: Hora de beber água! 💧', {
+          body: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
+          icon: '/icon.png',
+          silent: settings.sound === 'silencioso',
+          vibrate: settings.vibrate ? [200, 100, 200] : [],
+        });
+      } catch (e) {
+        console.error('Error showing notification via Service Worker', e);
+      }
+    } else {
+        toast({
+            title: 'Hora de beber água! 💧',
+            description: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
+        });
+    }
+    
+    setNextReminder(null); 
+    setTimeRemaining(null);
+  }, [settings, playNotificationSound, toast]);
+
+  const scheduleReminder = useCallback((time: number) => {
+    if (reminderTimeoutRef.current) {
+      clearTimeout(reminderTimeoutRef.current);
+    }
+    const now = Date.now();
+    const delay = time - now;
+
+    if (delay > 0) {
+      setNextReminder(time);
+      reminderTimeoutRef.current = setTimeout(() => {
+        showReminder();
+        // Schedule the next one automatically
+        const nextTime = Date.now() + settings.interval * 60 * 1000;
+        scheduleReminder(nextTime);
+      }, delay);
+    } else {
+       showReminder();
+       const nextTime = Date.now() + settings.interval * 60 * 1000;
+       scheduleReminder(nextTime);
+    }
+  }, [showReminder, settings.interval]);
+  
   // Load settings and logs from localStorage
   useEffect(() => {
     setIsMounted(true);
@@ -350,17 +421,14 @@ export default function Home() {
       if (savedLogs) {
         let logs: DrinkLog[] = JSON.parse(savedLogs);
         
-        // Clean up logs older than 7 days
         const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
         const recentLogs = logs.filter(log => log.timestamp >= sevenDaysAgo);
         
-        // Filter logs for today
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const todaysLogs = recentLogs.filter(log => log.timestamp >= today.getTime());
         setDrinkLogs(todaysLogs);
 
-        // Save back the cleaned logs if any were removed
         if (logs.length !== recentLogs.length) {
           localStorage.setItem('waterful_logs', JSON.stringify(recentLogs));
         }
@@ -372,24 +440,27 @@ export default function Home() {
 
   // Save logs to localStorage
   useEffect(() => {
-    if (isMounted) {
-      try {
-        const savedLogs = localStorage.getItem('waterful_logs') || '[]';
-        const allLogs = JSON.parse(savedLogs);
-        
-        // Create a Set of existing timestamps for quick lookup
-        const existingTimestamps = new Set(allLogs.map((l: DrinkLog) => l.timestamp));
-        
-        // Filter out logs that are already in storage
-        const newLogs = drinkLogs.filter(log => !existingTimestamps.has(log.timestamp));
+    if (!isMounted) return;
+    try {
+      const savedLogs = localStorage.getItem('waterful_logs') || '[]';
+      const allLogs: DrinkLog[] = JSON.parse(savedLogs);
+      
+      const updatedLogs = [...allLogs];
+      let logsChanged = false;
 
-        if (newLogs.length > 0) {
-          const updatedLogs = [...allLogs, ...newLogs];
-          localStorage.setItem('waterful_logs', JSON.stringify(updatedLogs));
+      drinkLogs.forEach(log => {
+        if (!updatedLogs.find(l => l.timestamp === log.timestamp)) {
+          updatedLogs.push(log);
+          logsChanged = true;
         }
-      } catch (error) {
-        console.error("Failed to save logs to localStorage", error);
+      });
+      
+      if (logsChanged) {
+        localStorage.setItem('waterful_logs', JSON.stringify(updatedLogs));
       }
+
+    } catch (error) {
+      console.error("Failed to save logs to localStorage", error);
     }
   }, [drinkLogs, isMounted]);
 
@@ -399,80 +470,6 @@ export default function Home() {
       localStorage.setItem('waterful_settings', JSON.stringify(settings));
     }
   }, [settings, isMounted]);
-  
-  const showReminder = useCallback(async () => {
-    // This function will be called by scheduleReminder
-    // It's defined early because scheduleReminder depends on it.
-
-    // Check for sleep time before showing reminder
-    const now = new Date();
-    if (settings.respectSleepTime) {
-      const [sleepH, sleepM] = settings.sleepTime.split(':').map(Number);
-      const [wakeH, wakeM] = settings.wakeTime.split(':').map(Number);
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
-      const sleepMinutes = sleepH * 60 + sleepM;
-      const wakeMinutes = wakeH * 60 + wakeM;
-
-      let isSleepTime = false;
-      if (sleepMinutes > wakeMinutes) { // Overnight sleep
-          if (currentMinutes >= sleepMinutes || currentMinutes < wakeMinutes) isSleepTime = true;
-      } else { // Same day sleep
-          if (currentMinutes >= sleepMinutes && currentMinutes < wakeMinutes) isSleepTime = true;
-      }
-      if (isSleepTime) {
-        const nextWakeTime = new Date();
-        nextWakeTime.setHours(wakeH, wakeM, 0, 0);
-        if(now.getTime() > nextWakeTime.getTime()){
-           nextWakeTime.setDate(nextWakeTime.getDate() + 1);
-        }
-        // The scheduleReminder is called inside the useEffect hook, no need to call it here again
-        // to avoid potential loops. The main effect will handle rescheduling.
-        return;
-      }
-    }
-
-    // Play sound, vibrate, and show notification
-    if (settings.vibrate && 'vibrate' in navigator) {
-        navigator.vibrate([200, 100, 200]);
-    }
-    
-    playNotificationSound();
-
-    if ('serviceWorker' in navigator && Notification.permission === 'granted') {
-      try {
-        const registration = await navigator.serviceWorker.ready;
-        registration.showNotification('Não poupe àgua: Hora de beber água! 💧', {
-          body: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
-          icon: '/icon.png',
-          silent: settings.sound === 'silencioso',
-        });
-      } catch (e) {
-        console.error('Error showing notification via Service Worker', e);
-      }
-    }
-    
-    // Stop the timer, wait for user intervention
-    setNextReminder(null); 
-    setTimeRemaining(null);
-
-  }, [settings, playNotificationSound]);
-
-  const scheduleReminder = useCallback((time: number) => {
-    if (reminderTimeoutRef.current) {
-        clearTimeout(reminderTimeoutRef.current);
-    }
-    const now = Date.now();
-    const delay = time - now;
-
-    if (delay > 0) {
-        setNextReminder(time);
-        reminderTimeoutRef.current = setTimeout(() => {
-            showReminder();
-        }, delay);
-    } else {
-       showReminder();
-    }
-  }, [showReminder]);
   
   const handleLogDrink = useCallback(() => {
     const now = Date.now();
@@ -510,26 +507,26 @@ export default function Home() {
     if (willBeActive) {
       const permission = await requestNotificationPermission();
       if (permission !== 'granted') {
-        return; // Don't activate reminders if permission is not granted
+        return; 
       }
     }
 
     setSettings(s => ({ ...s, isReminderActive: willBeActive }));
 
     if (willBeActive) {
-        // If we are activating reminders, schedule the next one.
-        // The main useEffect will handle the logic of when that should be.
-        const nextTime = Date.now() + settings.interval * 60 * 1000;
+        const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : Date.now();
+        const nextTime = lastDrinkTime + settings.interval * 60 * 1000;
         scheduleReminder(nextTime);
+        toast({ title: "Lembretes iniciados!" });
     } else {
-        // If we are deactivating, clear any existing timeout and state.
         if (reminderTimeoutRef.current) {
             clearTimeout(reminderTimeoutRef.current);
         }
         setNextReminder(null);
         setTimeRemaining(null);
+        toast({ title: "Lembretes pausados." });
     }
-}, [settings.isReminderActive, settings.interval, requestNotificationPermission, scheduleReminder]);
+}, [settings.isReminderActive, settings.interval, requestNotificationPermission, scheduleReminder, drinkLogs, toast]);
   
   const handleQuickSchedule = useCallback((interval: number) => {
     setSettings(s => ({ ...s, interval }));
@@ -539,35 +536,18 @@ export default function Home() {
     });
   }, [toast]);
     
-  // This effect handles re-scheduling if settings change, or on initial load.
   useEffect(() => {
-    if (!isMounted) return;
+    if (!isMounted || !settings.isReminderActive) return;
 
-    if (settings.isReminderActive) {
-      const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : 0;
-      let nextTime;
-      
-      if (lastDrinkTime > 0) {
-        // If there are logs, schedule relative to the last log
-        nextTime = lastDrinkTime + settings.interval * 60 * 1000;
-      } else {
-        // If no logs, schedule from now
-        nextTime = Date.now() + settings.interval * 60 * 1000;
-      }
-
-      // We should only re-schedule if there's no active reminder or if the new time is different
-      if (!nextReminder || nextReminder !== nextTime) {
-          scheduleReminder(nextTime);
-      }
-    } else {
-        // Reminders are off, clear any timeout
-        if (reminderTimeoutRef.current) {
-            clearTimeout(reminderTimeoutRef.current);
-        }
-        setNextReminder(null);
+    const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : 0;
+    
+    // Only schedule if there isn't one already active from a user action
+    if (!nextReminder) {
+      let nextTime = (lastDrinkTime > 0 ? lastDrinkTime : Date.now()) + settings.interval * 60 * 1000;
+      scheduleReminder(nextTime);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.isReminderActive, settings.interval, isMounted, drinkLogs]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.isReminderActive, settings.interval, isMounted]);
 
 
    useEffect(() => {
@@ -627,12 +607,7 @@ export default function Home() {
       return `Próximo lembrete em: ${formattedTime}`;
     }
     
-    // Check if a reminder is pending but not yet fired
-    if(nextReminder && nextReminder > Date.now()){
-        return `Próximo lembrete em: ${formattedTime}`;
-    }
-
-    return "Hora de beber água! Clique em 'Já bebi água!' para reiniciar.";
+    return "Hora de beber água! Registre sua bebida para reiniciar.";
   }
   
   if (!isMounted) {
