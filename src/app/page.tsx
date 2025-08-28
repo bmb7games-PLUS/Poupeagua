@@ -169,7 +169,7 @@ const AppSkeleton = () => (
 );
 
 
-const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, isSidebarVisible }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, playSound: (sound: string) => void, isSidebarVisible: boolean }) => {
+const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, isSidebarVisible, handleToggleReminders }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, playSound: (sound: string) => void, isSidebarVisible: boolean, handleToggleReminders: () => void }) => {
     
     const handleSoundChange = (soundName: string) => {
         setSettings(s => ({ ...s, sound: soundName }));
@@ -208,6 +208,18 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, 
               </TooltipProvider>
               <span className={cn(isSidebarVisible ? 'inline' : 'hidden')}>Configurações</span>
             </h3>
+
+            <div className={cn("space-y-2 mb-6", !isSidebarVisible && "hidden")}>
+                <Button 
+                    className="w-full" 
+                    onClick={handleToggleReminders}
+                    variant={settings.isReminderActive ? "destructive" : "default"}
+                    >
+                    <Bell className="mr-2 h-5 w-5"/>
+                    {settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes"}
+                </Button>
+            </div>
+
             <div className="space-y-6">
                 <div className="space-y-2">
                     {renderLabel(<Clock />, "Intervalo de Lembrete", "Intervalo de Lembrete")}
@@ -387,21 +399,42 @@ export default function Home() {
     if (reminderTimeoutRef.current) {
       clearTimeout(reminderTimeoutRef.current);
     }
-    
+
     const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : Date.now();
     const nextTime = lastDrinkTime + settings.interval * 60 * 1000;
-
     const now = Date.now();
     const delay = nextTime - now;
-
+    
     setNextReminder(nextTime);
 
-    reminderTimeoutRef.current = setTimeout(() => {
+    if (delay > 0) {
+      reminderTimeoutRef.current = setTimeout(() => {
         showReminder();
         scheduleReminder(); 
-    }, delay > 0 ? delay : settings.interval * 60 * 1000);
-
+      }, delay);
+    } else {
+      showReminder();
+      reminderTimeoutRef.current = setTimeout(() => {
+        scheduleReminder();
+      }, settings.interval * 60 * 1000);
+    }
   }, [drinkLogs, settings.interval, showReminder]);
+
+  const handleToggleReminders = useCallback(() => {
+    setSettings(s => ({ ...s, isReminderActive: !s.isReminderActive }));
+  }, []);
+
+  useEffect(() => {
+    if (settings.isReminderActive) {
+      scheduleReminder();
+    } else {
+      if (reminderTimeoutRef.current) {
+        clearTimeout(reminderTimeoutRef.current);
+        reminderTimeoutref.current = null;
+      }
+      setNextReminder(null);
+    }
+  }, [settings.isReminderActive, scheduleReminder]);
 
   const requestNotificationPermission = useCallback(async () => {
     if (!('Notification' in window)) {
@@ -418,35 +451,6 @@ export default function Home() {
     }
     return Notification.permission;
   }, [toast]);
-  
-  const handleToggleReminders = useCallback(async () => {
-    const willBeActive = !settings.isReminderActive;
-
-    if (willBeActive) {
-      const permission = await requestNotificationPermission();
-      if (permission !== 'granted') {
-        return;
-      }
-      toast({ title: "Lembretes iniciados!" });
-    } else {
-      toast({ title: "Lembretes pausados." });
-    }
-    setSettings(s => ({ ...s, isReminderActive: willBeActive }));
-
-}, [settings.isReminderActive, requestNotificationPermission, toast]);
-
-  useEffect(() => {
-    if (settings.isReminderActive) {
-      scheduleReminder();
-    } else {
-      if (reminderTimeoutRef.current) {
-        clearTimeout(reminderTimeoutRef.current);
-        reminderTimeoutRef.current = null;
-      }
-      setNextReminder(null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.isReminderActive, drinkLogs]);
   
   // Load settings and logs from localStorage
   useEffect(() => {
@@ -535,7 +539,10 @@ export default function Home() {
       description: "Excelente! O cronômetro foi reiniciado.",
       duration: 3000,
     });
-  }, [toast]);
+    if (settings.isReminderActive) {
+      scheduleReminder();
+    }
+  }, [toast, settings.isReminderActive, scheduleReminder]);
   
   const handleQuickSchedule = useCallback((interval: number) => {
     setSettings(s => ({ ...s, interval }));
@@ -616,7 +623,7 @@ export default function Home() {
         "hidden lg:block border-r border-border overflow-y-auto transition-all duration-300 ease-in-out",
         isSidebarVisible ? "w-80" : "w-24"
       )}>
-        <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={isSidebarVisible}/>
+        <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={isSidebarVisible} handleToggleReminders={handleToggleReminders}/>
       </aside>
 
       {/* Conteúdo Principal */}
@@ -654,7 +661,7 @@ export default function Home() {
                       <SheetHeader className="p-4 border-b">
                         <SheetTitle>Configurações</SheetTitle>
                       </SheetHeader>
-                      <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={true}/>
+                      <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={true} handleToggleReminders={handleToggleReminders}/>
                   </SheetContent>
               </Sheet>
             </div>
@@ -675,15 +682,6 @@ export default function Home() {
               <CardFooter className="flex-col sm:flex-row justify-center gap-4">
                 <Button size="lg" className="w-full sm:w-auto transform hover:scale-105 transition-transform" onClick={handleLogDrink}>
                   <WaterDropIcon className="mr-2 h-5 w-5" /> Já bebi água!
-                </Button>
-                <Button 
-                  size="lg"
-                  className="w-full sm:w-auto" 
-                  onClick={handleToggleReminders}
-                  variant={settings.isReminderActive ? "destructive" : "default"}
-                >
-                  <Bell className="mr-2 h-5 w-5"/>
-                  {settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes"}
                 </Button>
               </CardFooter>
           </Card>
