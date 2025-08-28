@@ -645,7 +645,7 @@ export default function Home() {
                 <div className="w-full h-[250px]">
                   <HydrationChart data={drinkLogs} settings={settings} />
                 </div>
-              </CartContent>
+              </CardContent>
               <CardFooter className="flex-col sm:flex-row justify-center gap-4">
                 <Button size="lg" className="w-full sm:w-auto transform hover:scale-105 transition-transform" onClick={handleLogDrink}>
                   <WaterDropIcon className="mr-2 h-5 w-5" /> Já bebi água!
