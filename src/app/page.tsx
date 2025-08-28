@@ -140,7 +140,7 @@ const HydrationChart = ({ data, settings }: { data: DrinkLog[]; settings: Settin
                 />
                 <Legend />
                 <Line type="monotone" dataKey="count" name="Bebidas" stroke="var(--color-drinks)" strokeWidth={2} dot={{r: 4, fill: "var(--color-drinks)"}} activeDot={{r: 6}} />
-                <Line type="monotone" dataKey="goal" name="Meta por Hora" stroke="var(--color-goal)" strokeWidth={2} strokeDasharray="3 3" dot={false} activeDot={false} />
+                <Line type="monotone" dataKey="goal" name="Meta por Hora" stroke="var(--color-goal)" strokeWidth={2} strokeDasharray="2 6" dot={false} activeDot={false} />
             </LineChart>
         </ResponsiveContainer>
     </ChartContainer>
@@ -346,17 +346,14 @@ export default function Home() {
       if (savedLogs) {
         let logs: DrinkLog[] = JSON.parse(savedLogs);
         
-        // Clean up logs older than 7 days
         const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
         const allRecentLogs = logs.filter(log => log.timestamp >= sevenDaysAgo);
         
-        // Filter for today's logs to display on the chart
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const todaysLogs = allRecentLogs.filter(log => log.timestamp >= today.getTime());
         setDrinkLogs(todaysLogs);
 
-        // If logs were cleaned, update localStorage
         if (logs.length !== allRecentLogs.length) {
           localStorage.setItem('waterful_logs', JSON.stringify(allRecentLogs));
         }
@@ -368,15 +365,12 @@ export default function Home() {
 
   useEffect(() => {
     if (isMounted) {
-      // Save all logs (not just today's) back to localStorage
       try {
         const savedLogs = localStorage.getItem('waterful_logs');
         const allLogs = savedLogs ? JSON.parse(savedLogs) : [];
         
-        // Create a map of existing logs to avoid duplicates
         const logMap = new Map(allLogs.map((l: DrinkLog) => [l.timestamp, l]));
         
-        // Add new logs from the current session
         drinkLogs.forEach(log => {
           if (!logMap.has(log.timestamp)) {
             logMap.set(log.timestamp, log);
@@ -414,7 +408,7 @@ export default function Home() {
 
   const requestNotificationPermission = useCallback(async () => {
     if (!('Notification' in window)) {
-        return;
+        return 'denied';
     }
     if (Notification.permission === 'default') {
       const permission = await Notification.requestPermission();
@@ -423,13 +417,19 @@ export default function Home() {
       } else {
         toast({ title: "Notificações bloqueadas", description: "Não poderemos enviar lembretes.", variant: "destructive" });
       }
+      return permission;
     }
+    return Notification.permission;
   }, [toast]);
   
-  const handleToggleReminders = useCallback(() => {
+  const handleToggleReminders = useCallback(async () => {
     const willBeActive = !settings.isReminderActive;
     if (willBeActive) {
-      requestNotificationPermission();
+      const permission = await requestNotificationPermission();
+       if (permission !== 'granted') {
+         setSettings(s => ({ ...s, isReminderActive: false }));
+         return;
+       }
     }
     setSettings(s => ({ ...s, isReminderActive: willBeActive }));
   }, [settings.isReminderActive, requestNotificationPermission]);
@@ -442,7 +442,7 @@ export default function Home() {
     });
   }, [toast]);
     
-  const showReminder = useCallback(() => {
+  const showReminder = useCallback(async () => {
     // Check for sleep time before showing reminder
     const now = new Date();
     if (settings.respectSleepTime) {
@@ -473,24 +473,27 @@ export default function Home() {
     if (settings.vibrate && 'vibrate' in navigator) {
         navigator.vibrate([200, 100, 200]);
     }
+    
+    playNotificationSound();
 
-    if (Notification.permission === 'granted') {
-      playNotificationSound();
-      
-      const notificationOptions: NotificationOptions = {
-        body: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
-        icon: '/icon.png',
-        silent: settings.sound === 'silencioso',
-      };
-      
-      new Notification('Waterful: Hora de beber água! 💧', notificationOptions);
+    if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        registration.showNotification('Waterful: Hora de beber água! 💧', {
+          body: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
+          icon: '/icon.png',
+          silent: settings.sound === 'silencioso',
+        });
+      } catch (e) {
+        console.error('Error showing notification via Service Worker', e);
+      }
     }
     
     // Stop the timer, wait for user intervention
     setNextReminder(null); 
     setTimeRemaining(null);
 
-  }, [settings.respectSleepTime, settings.sleepTime, settings.wakeTime, settings.sound, settings.vibrate, playNotificationSound]);
+  }, [settings, playNotificationSound]);
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout | null = null;
@@ -500,16 +503,14 @@ export default function Home() {
       const timeSinceLastDrink = Date.now() - lastDrinkTime;
       const initialDelay = Math.max(0, (settings.interval * 60 * 1000) - timeSinceLastDrink);
       
-      // If there's an active reminder cycle, set a timeout for it
       if(nextReminder && nextReminder > Date.now()){
         const delay = nextReminder - Date.now();
         timeoutId = setTimeout(showReminder, delay);
-      } else if (drinkLogs.length > 0) { // If there's no active cycle but we have logs, start based on the last log
+      } else if (drinkLogs.length > 0) {
         const reminderTime = lastDrinkTime + settings.interval * 60 * 1000;
         if(reminderTime > Date.now()){
             setNextReminder(reminderTime);
         } else {
-            // If the last drink was too long ago, trigger reminder immediately
             showReminder();
         }
       }
@@ -532,7 +533,6 @@ export default function Home() {
         const remaining = Math.max(0, nextReminder - Date.now());
         setTimeRemaining(remaining);
         if (remaining === 0) {
-           showReminder();
            if(timerId) clearInterval(timerId);
         }
       }
@@ -544,7 +544,7 @@ export default function Home() {
     return () => {
       if (timerId) clearInterval(timerId);
     };
-  }, [nextReminder, settings.isReminderActive, showReminder]);
+  }, [nextReminder, settings.isReminderActive]);
   
   const formatTimeRemaining = (ms: number | null) => {
     if (ms === null || ms < 0) {
@@ -674,3 +674,8 @@ export default function Home() {
     </div>
   );
 }
+
+
+    
+
+    
