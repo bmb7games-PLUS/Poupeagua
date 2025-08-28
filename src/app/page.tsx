@@ -365,13 +365,17 @@ export default function Home() {
         
         // Clean up logs older than 7 days
         const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-        const recentLogs = logs.filter(log => log.timestamp >= sevenDaysAgo);
+        const allRecentLogs = logs.filter(log => log.timestamp >= sevenDaysAgo);
         
-        setDrinkLogs(recentLogs);
+        // Filter for today's logs to display on the chart
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todaysLogs = allRecentLogs.filter(log => log.timestamp >= today.getTime());
+        setDrinkLogs(todaysLogs);
 
         // If logs were cleaned, update localStorage
-        if (logs.length !== recentLogs.length) {
-          localStorage.setItem('waterful_logs', JSON.stringify(recentLogs));
+        if (logs.length !== allRecentLogs.length) {
+          localStorage.setItem('waterful_logs', JSON.stringify(allRecentLogs));
         }
       }
     } catch (error) {
@@ -381,15 +385,35 @@ export default function Home() {
 
   useEffect(() => {
     if (isMounted) {
-      localStorage.setItem('waterful_settings', JSON.stringify(settings));
+      // Save all logs (not just today's) back to localStorage
+      try {
+        const savedLogs = localStorage.getItem('waterful_logs');
+        const allLogs = savedLogs ? JSON.parse(savedLogs) : [];
+        
+        // Create a map of existing logs to avoid duplicates
+        const logMap = new Map(allLogs.map((l: DrinkLog) => [l.timestamp, l]));
+        
+        // Add new logs from the current session
+        drinkLogs.forEach(log => {
+          if (!logMap.has(log.timestamp)) {
+            logMap.set(log.timestamp, log);
+          }
+        });
+
+        const updatedLogs = Array.from(logMap.values());
+        localStorage.setItem('waterful_logs', JSON.stringify(updatedLogs));
+
+      } catch (error) {
+        console.error("Failed to save logs to localStorage", error);
+      }
     }
-  }, [settings, isMounted]);
+  }, [drinkLogs, isMounted]);
 
   useEffect(() => {
     if (isMounted) {
-      localStorage.setItem('waterful_logs', JSON.stringify(drinkLogs));
+      localStorage.setItem('waterful_settings', JSON.stringify(settings));
     }
-  }, [drinkLogs, isMounted]);
+  }, [settings, isMounted]);
   
   const handleLogDrink = useCallback(() => {
     const now = Date.now();
