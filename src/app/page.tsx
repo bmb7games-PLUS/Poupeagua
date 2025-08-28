@@ -431,6 +431,13 @@ export default function Home() {
         const newIsReminderActive = !currentSettings.isReminderActive;
         if (newIsReminderActive) {
             scheduleReminder();
+        } else {
+            if (reminderTimeoutRef.current) {
+                clearTimeout(reminderTimeoutRef.current);
+                reminderTimeoutRef.current = null;
+            }
+            setNextReminder(null);
+            setTimeRemaining(null);
         }
         return { ...currentSettings, isReminderActive: newIsReminderActive };
     });
