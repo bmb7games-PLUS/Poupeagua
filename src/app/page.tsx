@@ -136,7 +136,7 @@ const HydrationChart = ({ data, settings }: { data: DrinkLog[]; settings: Settin
                     content={<ChartTooltipContent indicator="line" />}
                 />
                 <Legend />
-                <Line type="monotone" dataKey="count" name="Bebidas" stroke="var(--color-drinks)" strokeWidth={2} dot={{r: 4, fill: "var(--color-drinks)"}} activeDot={{r: 6}} />
+                <Line type="monotone" dataKey="count" name="Bebidas" stroke="var(--color-drinks)" strokeWidth={2} activeDot={{r: 6}} dot={false} />
                 <Line type="monotone" dataKey="goal" name="Meta por Hora" stroke="var(--color-goal)" strokeWidth={2} strokeDasharray="2 6" dot={false} activeDot={false} />
             </LineChart>
         </ResponsiveContainer>
