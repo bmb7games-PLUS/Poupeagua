@@ -243,7 +243,7 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, 
                      <div className={cn(!isSidebarVisible && "hidden")}>
                       <Select
                           value={settings.sound}
-                          onValueChange={handleSoundChange}
+                          onValuechange={handleSoundChange}
                       >
                           <SelectTrigger id="sound"><SelectValue placeholder="Selecione o som" /></SelectTrigger>
                           <SelectContent>
@@ -363,17 +363,21 @@ export default function Home() {
     playNotificationSound();
 
     if ('serviceWorker' in navigator && Notification.permission === 'granted') {
-      try {
-        const registration = await navigator.serviceWorker.ready;
-        registration.showNotification('Não poupe àgua: Hora de beber água! 💧', {
-          body: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
-          icon: '/icon.png',
-          silent: settings.sound === 'silencioso',
-          vibrate: settings.vibrate ? [200, 100, 200] : [],
-        });
-      } catch (e) {
-        console.error('Error showing notification via Service Worker', e);
-      }
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            registration.showNotification('Não poupe àgua: Hora de beber água! 💧', {
+                body: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
+                icon: '/icon.png',
+                silent: settings.sound === 'silencioso',
+                vibrate: settings.vibrate ? [200, 100, 200] : [],
+            });
+        } catch (e) {
+            console.error('Error showing notification via Service Worker', e);
+            toast({
+                title: 'Hora de beber água! 💧',
+                description: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
+            });
+        }
     } else {
         toast({
             title: 'Hora de beber água! 💧',
@@ -385,27 +389,40 @@ export default function Home() {
     setTimeRemaining(null);
   }, [settings, playNotificationSound, toast]);
 
-  const scheduleReminder = useCallback((time: number) => {
+ const scheduleReminder = useCallback(() => {
     if (reminderTimeoutRef.current) {
       clearTimeout(reminderTimeoutRef.current);
     }
+    
+    const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : Date.now();
+    const nextTime = lastDrinkTime + settings.interval * 60 * 1000;
+
     const now = Date.now();
-    const delay = time - now;
+    const delay = nextTime - now;
 
     if (delay > 0) {
-      setNextReminder(time);
+      setNextReminder(nextTime);
       reminderTimeoutRef.current = setTimeout(() => {
         showReminder();
-        // Schedule the next one automatically
-        const nextTime = Date.now() + settings.interval * 60 * 1000;
-        scheduleReminder(nextTime);
+        scheduleReminder(); 
       }, delay);
     } else {
        showReminder();
-       const nextTime = Date.now() + settings.interval * 60 * 1000;
-       scheduleReminder(nextTime);
+       scheduleReminder();
     }
-  }, [showReminder, settings.interval]);
+  }, [drinkLogs, settings.interval, showReminder]);
+
+  useEffect(() => {
+    if (settings.isReminderActive) {
+      scheduleReminder();
+    } else {
+      if (reminderTimeoutRef.current) {
+        clearTimeout(reminderTimeoutRef.current);
+      }
+      setNextReminder(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.isReminderActive]);
   
   // Load settings and logs from localStorage
   useEffect(() => {
@@ -480,10 +497,9 @@ export default function Home() {
       duration: 3000,
     });
     if (settings.isReminderActive) {
-        const nextReminderTime = now + settings.interval * 60 * 1000;
-        scheduleReminder(nextReminderTime);
+       scheduleReminder();
     }
-  }, [settings.isReminderActive, settings.interval, toast, scheduleReminder]);
+  }, [settings.isReminderActive, toast, scheduleReminder]);
 
   const requestNotificationPermission = useCallback(async () => {
     if (!('Notification' in window)) {
@@ -509,24 +525,14 @@ export default function Home() {
       if (permission !== 'granted') {
         return; 
       }
+      toast({ title: "Lembretes iniciados!" });
+    } else {
+      toast({ title: "Lembretes pausados." });
     }
-
+    
     setSettings(s => ({ ...s, isReminderActive: willBeActive }));
 
-    if (willBeActive) {
-        const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : Date.now();
-        const nextTime = lastDrinkTime + settings.interval * 60 * 1000;
-        scheduleReminder(nextTime);
-        toast({ title: "Lembretes iniciados!" });
-    } else {
-        if (reminderTimeoutRef.current) {
-            clearTimeout(reminderTimeoutRef.current);
-        }
-        setNextReminder(null);
-        setTimeRemaining(null);
-        toast({ title: "Lembretes pausados." });
-    }
-}, [settings.isReminderActive, settings.interval, requestNotificationPermission, scheduleReminder, drinkLogs, toast]);
+}, [settings.isReminderActive, requestNotificationPermission, toast]);
   
   const handleQuickSchedule = useCallback((interval: number) => {
     setSettings(s => ({ ...s, interval }));
@@ -536,20 +542,6 @@ export default function Home() {
     });
   }, [toast]);
     
-  useEffect(() => {
-    if (!isMounted || !settings.isReminderActive) return;
-
-    const lastDrinkTime = drinkLogs.length > 0 ? drinkLogs[drinkLogs.length - 1].timestamp : 0;
-    
-    // Only schedule if there isn't one already active from a user action
-    if (!nextReminder) {
-      let nextTime = (lastDrinkTime > 0 ? lastDrinkTime : Date.now()) + settings.interval * 60 * 1000;
-      scheduleReminder(nextTime);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.isReminderActive, settings.interval, isMounted]);
-
-
    useEffect(() => {
     let timerId: NodeJS.Timeout | null = null;
     if (nextReminder && settings.isReminderActive) {
