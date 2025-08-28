@@ -136,7 +136,7 @@ const HydrationChart = ({ data, settings }: { data: DrinkLog[]; settings: Settin
                     content={<ChartTooltipContent indicator="line" />}
                 />
                 <Legend />
-                <Line type="monotone" dataKey="count" name="Bebidas" stroke="var(--color-drinks)" strokeWidth={2} activeDot={{r: 6}} dot={false} />
+                <Line type="monotone" dataKey="count" name="Bebidas" stroke="var(--color-drinks)" strokeWidth={2} dot={false} activeDot={{r: 6}} />
                 <Line type="monotone" dataKey="goal" name="Meta por Hora" stroke="var(--color-goal)" strokeWidth={2} strokeDasharray="2 6" dot={false} activeDot={false} />
             </LineChart>
         </ResponsiveContainer>
@@ -396,16 +396,11 @@ export default function Home() {
 
     setNextReminder(nextTime);
 
-    if (delay <= 0) {
-      showReminder();
-      // After showing, schedule the next one from now
-      reminderTimeoutRef.current = setTimeout(scheduleReminder, settings.interval * 60 * 1000);
-    } else {
-      reminderTimeoutRef.current = setTimeout(() => {
+    reminderTimeoutRef.current = setTimeout(() => {
         showReminder();
         scheduleReminder(); 
-      }, delay);
-    }
+    }, delay > 0 ? delay : settings.interval * 60 * 1000);
+
   }, [drinkLogs, settings.interval, showReminder]);
 
   const requestNotificationPermission = useCallback(async () => {
@@ -432,20 +427,26 @@ export default function Home() {
       if (permission !== 'granted') {
         return;
       }
-      setSettings(s => ({ ...s, isReminderActive: true }));
-      scheduleReminder();
       toast({ title: "Lembretes iniciados!" });
+    } else {
+      toast({ title: "Lembretes pausados." });
+    }
+    setSettings(s => ({ ...s, isReminderActive: willBeActive }));
+
+}, [settings.isReminderActive, requestNotificationPermission, toast]);
+
+  useEffect(() => {
+    if (settings.isReminderActive) {
+      scheduleReminder();
     } else {
       if (reminderTimeoutRef.current) {
         clearTimeout(reminderTimeoutRef.current);
         reminderTimeoutRef.current = null;
       }
-      setSettings(s => ({ ...s, isReminderActive: false }));
       setNextReminder(null);
-      setTimeRemaining(null);
-      toast({ title: "Lembretes pausados." });
     }
-}, [settings.isReminderActive, requestNotificationPermission, toast, scheduleReminder]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.isReminderActive, drinkLogs]);
   
   // Load settings and logs from localStorage
   useEffect(() => {
@@ -454,7 +455,8 @@ export default function Home() {
     try {
       const savedSettings = localStorage.getItem('waterful_settings');
       if (savedSettings) {
-        setSettings(JSON.parse(savedSettings));
+        const parsedSettings = JSON.parse(savedSettings);
+        setSettings(s => ({...s, ...parsedSettings}));
       }
 
       const savedLogs = localStorage.getItem('waterful_logs');
@@ -483,17 +485,31 @@ export default function Home() {
     if (!isMounted) return;
     try {
       const savedLogs = localStorage.getItem('waterful_logs') || '[]';
-      const allLogs: DrinkLog[] = JSON.parse(savedLogs);
+      let allLogs: DrinkLog[];
+      try {
+        allLogs = JSON.parse(savedLogs);
+        if (!Array.isArray(allLogs)) {
+            allLogs = [];
+        }
+      } catch {
+        allLogs = [];
+      }
       
       const updatedLogs = [...allLogs];
       let logsChanged = false;
 
-      drinkLogs.forEach(log => {
-        if (!updatedLogs.find(l => l.timestamp === log.timestamp)) {
-          updatedLogs.push(log);
-          logsChanged = true;
-        }
-      });
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const startOfToday = today.getTime();
+
+      const newLogsForToday = drinkLogs.filter(
+        log => log.timestamp >= startOfToday && !allLogs.find(l => l.timestamp === log.timestamp)
+      );
+
+      if (newLogsForToday.length > 0) {
+        logsChanged = true;
+        updatedLogs.push(...newLogsForToday);
+      }
       
       if (logsChanged) {
         localStorage.setItem('waterful_logs', JSON.stringify(updatedLogs));
@@ -519,10 +535,7 @@ export default function Home() {
       description: "Excelente! O cronômetro foi reiniciado.",
       duration: 3000,
     });
-    if (settings.isReminderActive) {
-       scheduleReminder();
-    }
-  }, [settings.isReminderActive, toast, scheduleReminder]);
+  }, [toast]);
   
   const handleQuickSchedule = useCallback((interval: number) => {
     setSettings(s => ({ ...s, interval }));
@@ -530,10 +543,7 @@ export default function Home() {
       title: "Intervalo atualizado!",
       description: `Lembretes definidos para cada ${interval} minutos.`,
     });
-     if (settings.isReminderActive) {
-      scheduleReminder();
-    }
-  }, [toast, settings.isReminderActive, scheduleReminder]);
+  }, [toast]);
     
    useEffect(() => {
     let timerId: NodeJS.Timeout | null = null;
