@@ -286,23 +286,6 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, isSidebarVi
                     </div>
                 </div>
             </div>
-            <div className="p-4 border-t mt-auto">
-                <Button 
-                    className="w-full" 
-                    onClick={() => setSettings(s => ({ ...s, isReminderActive: !s.isReminderActive }))}
-                    variant={settings.isReminderActive ? "destructive" : "default"}
-                    >
-                    <Bell className="mr-2 h-5 w-5"/>
-                    <span className={cn(isSidebarVisible ? 'inline' : 'hidden')}>
-                      {settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes"}
-                    </span>
-                     {!isSidebarVisible && (
-                        <span className="sr-only">
-                            {settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes"}
-                        </span>
-                    )}
-                </Button>
-            </div>
         </div>
     );
 };
@@ -340,17 +323,18 @@ export default function Home() {
           if (currentMinutes >= sleepMinutes && currentMinutes < wakeMinutes) isSleepTime = true;
         }
         if (isSleepTime) {
-          // Instead of returning, schedule it for after wake time
           const wakeUpTime = new Date();
           wakeUpTime.setHours(wakeH, wakeM, 0, 0);
           if (now.getTime() > wakeUpTime.getTime()) {
              wakeUpTime.setDate(wakeUpTime.getDate() + 1);
           }
           const delay = wakeUpTime.getTime() - now.getTime();
+          
+          setNextReminder(wakeUpTime.getTime());
+          
           reminderTimeoutRef.current = setTimeout(() => {
               scheduleReminder();
           }, delay);
-          setNextReminder(wakeUpTime.getTime());
           return;
         }
       }
@@ -383,8 +367,10 @@ export default function Home() {
           });
       }
       
-      // After showing, schedule the next one
-      scheduleReminder();
+      const nextDelay = settings.interval * 60 * 1000;
+      const nextTime = Date.now() + nextDelay;
+      setNextReminder(nextTime);
+      reminderTimeoutRef.current = setTimeout(showReminder, nextDelay);
     };
 
 
@@ -402,9 +388,19 @@ export default function Home() {
     }
   }, [drinkLogs, settings, toast]);
 
+  
+  const handleToggleReminders = useCallback(() => {
+    setSettings(s => ({ ...s, isReminderActive: !s.isReminderActive }));
+  }, []);
+
   useEffect(() => {
     if (settings.isReminderActive) {
       scheduleReminder();
+      toast({
+        title: "Lembretes iniciados!",
+        description: `Você será lembrado a cada ${settings.interval} minutos.`,
+        duration: 3000
+      });
     } else {
       if (reminderTimeoutRef.current) {
         clearTimeout(reminderTimeoutRef.current);
@@ -413,13 +409,12 @@ export default function Home() {
       setNextReminder(null);
       setTimeRemaining(null);
     }
-
     return () => {
       if (reminderTimeoutRef.current) {
         clearTimeout(reminderTimeoutRef.current);
       }
     };
-  }, [settings.isReminderActive, scheduleReminder]);
+  }, [settings.isReminderActive, settings.interval, scheduleReminder, toast]);
   
   const requestNotificationPermission = useCallback(async () => {
     if (!('Notification' in window)) {
@@ -437,7 +432,6 @@ export default function Home() {
     return Notification.permission;
   }, [toast]);
   
-  // Load settings and logs from localStorage
   useEffect(() => {
     setIsMounted(true);
     
@@ -463,7 +457,6 @@ export default function Home() {
     requestNotificationPermission();
   }, [requestNotificationPermission]);
 
-  // Save logs to localStorage
   useEffect(() => {
     if (!isMounted) return;
     try {
@@ -482,7 +475,6 @@ export default function Home() {
       today.setHours(0, 0, 0, 0);
       const startOfToday = today.getTime();
       
-      // Filter out logs from previous days
       const recentLogs = allLogs.filter(log => log.timestamp >= startOfToday);
 
       const todaysTimestamps = new Set(recentLogs.map(l => l.timestamp));
@@ -499,7 +491,6 @@ export default function Home() {
     }
   }, [drinkLogs, isMounted]);
 
-  // Save settings to localStorage
   useEffect(() => {
     if (isMounted) {
       localStorage.setItem('waterful_settings', JSON.stringify(settings));
@@ -537,7 +528,7 @@ export default function Home() {
            if(timerId) clearInterval(timerId);
         }
       }
-      update(); // run once immediately
+      update();
       timerId = setInterval(update, 1000);
     } else {
       setTimeRemaining(null);
@@ -571,9 +562,9 @@ export default function Home() {
       const wakeMinutes = wakeH * 60 + wakeM;
 
       let isSleepTime = false;
-      if (sleepMinutes > wakeMinutes) { // Overnight
+      if (sleepMinutes > wakeMinutes) {
           if (currentMinutes >= sleepMinutes || currentMinutes < wakeMinutes) isSleepTime = true;
-      } else { // Same day
+      } else {
           if (currentMinutes >= sleepMinutes && currentMinutes < wakeMinutes) isSleepTime = true;
       }
       if(isSleepTime) return `Hora de dormir! Lembretes voltam às ${settings.wakeTime}.`;
@@ -593,7 +584,6 @@ export default function Home() {
 
   return (
     <div className="flex h-screen font-body bg-background">
-      {/* Sidebar para desktop */}
        <aside className={cn(
         "hidden lg:flex flex-col border-r border-border transition-all duration-300 ease-in-out",
         isSidebarVisible ? "w-80" : "w-24"
@@ -601,7 +591,6 @@ export default function Home() {
         <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} isSidebarVisible={isSidebarVisible} />
       </aside>
 
-      {/* Conteúdo Principal */}
       <main className="flex-1 flex flex-col items-center p-4 md:p-8 overflow-y-auto relative">
          <div className="hidden lg:block">
             <Button
@@ -624,7 +613,6 @@ export default function Home() {
                 <p className="text-muted-foreground text-sm sm:text-md">Seu companheiro de hidratação.</p>
               </div>
             </div>
-            {/* Gatilho da Sheet para mobile */}
             <div className="lg:hidden">
               <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                   <SheetTrigger asChild>
@@ -654,9 +642,18 @@ export default function Home() {
                   <HydrationChart data={drinkLogs} settings={settings} />
                 </div>
               </CardContent>
-              <CardFooter className="flex-col sm:flex-row justify-center gap-4">
+              <CardFooter className="flex-col sm:flex-row justify-center items-center gap-4">
                 <Button size="lg" className="w-full sm:w-auto transform hover:scale-105 transition-transform" onClick={handleLogDrink}>
                   <WaterDropIcon className="mr-2 h-5 w-5" /> Já bebi água!
+                </Button>
+                 <Button 
+                    size="lg"
+                    className="w-full sm:w-auto" 
+                    onClick={handleToggleReminders}
+                    variant={settings.isReminderActive ? "destructive" : "default"}
+                    >
+                    <Bell className="mr-2 h-5 w-5"/>
+                      {settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes"}
                 </Button>
               </CardFooter>
           </Card>
@@ -665,3 +662,4 @@ export default function Home() {
     </div>
   );
 }
+
