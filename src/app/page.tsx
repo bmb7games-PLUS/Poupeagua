@@ -479,7 +479,7 @@ export default function Home() {
     if ('serviceWorker' in navigator && Notification.permission === 'granted') {
       try {
         const registration = await navigator.serviceWorker.ready;
-        registration.showNotification('Waterful: Hora de beber água! 💧', {
+        registration.showNotification('Não poupe água: Hora de beber água! 💧', {
           body: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
           icon: '/icon.png',
           silent: settings.sound === 'silencioso',
@@ -619,7 +619,7 @@ export default function Home() {
             <div className="flex items-center gap-4">
               <WaterDropIcon className="w-12 h-12 text-primary" />
               <div>
-                <h1 className="text-3xl sm:text-4xl font-bold font-headline text-slate-800 dark:text-slate-100">Waterful</h1>
+                <h1 className="text-3xl sm:text-4xl font-bold font-headline text-slate-800 dark:text-slate-100">Não poupe àgua</h1>
                 <p className="text-muted-foreground text-sm sm:text-md">Seu companheiro de hidratação.</p>
               </div>
             </div>

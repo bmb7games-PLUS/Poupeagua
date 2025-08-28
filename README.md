@@ -1,4 +1,4 @@
-# Waterful
+# Não poupe àgua
 
 Este é um aplicativo de lembrete de hidratação criado com o Firebase Studio.
 

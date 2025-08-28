@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'Waterful',
+  title: 'Não poupe àgua',
   description: 'Seu lembrete diário para se manter hidratado.',
 };
 
