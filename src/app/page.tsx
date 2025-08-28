@@ -256,13 +256,19 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, 
                      </div>
                 </div>
 
-                <div className="space-y-4">
-                    <div className={cn("flex items-center justify-between", !isSidebarVisible && "justify-center")}>
-                        {renderLabel(<Vibrate />, "Vibrar", "Vibrar")}
+                 <div className="space-y-4">
+                    <div className={cn("flex items-center justify-between", !isSidebarVisible && "flex-col gap-2 items-center")}>
+                        <Label htmlFor="vibrate-mode" className="flex items-center gap-2 cursor-pointer">
+                            <Vibrate />
+                            <span className={cn(isSidebarVisible ? 'inline' : 'hidden sm:inline')}>Vibrar</span>
+                        </Label>
                         <Switch id="vibrate-mode" checked={settings.vibrate} onCheckedChange={checked => setSettings(s => ({...s, vibrate: checked}))}/>
                     </div>
-                    <div className={cn("flex items-center justify-between", !isSidebarVisible && "justify-center")}>
-                        {renderLabel(<Moon />, "Respeitar Horário de Sono", "Respeitar Horário de Sono")}
+                    <div className={cn("flex items-center justify-between", !isSidebarVisible && "flex-col gap-2 items-center")}>
+                        <Label htmlFor="sleep-mode" className="flex items-center gap-2 cursor-pointer">
+                           <Moon />
+                           <span className={cn(isSidebarVisible ? 'inline' : 'hidden sm:inline')}>Modo Sono</span>
+                        </Label>
                         <Switch id="sleep-mode" checked={settings.respectSleepTime} onCheckedChange={checked => setSettings(s => ({...s, respectSleepTime: checked}))}/>
                     </div>
                     {settings.respectSleepTime && (
