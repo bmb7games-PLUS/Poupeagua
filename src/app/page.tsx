@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -18,7 +16,6 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Legend, XAxis, YAx
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { initializeApp } from "firebase/app";
 
 type DrinkLog = {
   timestamp: number;
@@ -337,25 +334,24 @@ export default function Home() {
     
     try {
       const savedSettings = localStorage.getItem('waterful_settings');
-      let savedLogs = localStorage.getItem('waterful_logs');
-
       if (savedSettings) {
         setSettings(JSON.parse(savedSettings));
       }
 
+      const savedLogs = localStorage.getItem('waterful_logs');
       if (savedLogs) {
         let logs: DrinkLog[] = JSON.parse(savedLogs);
         
         const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-        const allRecentLogs = logs.filter(log => log.timestamp >= sevenDaysAgo);
+        const recentLogs = logs.filter(log => log.timestamp >= sevenDaysAgo);
         
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const todaysLogs = allRecentLogs.filter(log => log.timestamp >= today.getTime());
+        const todaysLogs = recentLogs.filter(log => log.timestamp >= today.getTime());
         setDrinkLogs(todaysLogs);
 
-        if (logs.length !== allRecentLogs.length) {
-          localStorage.setItem('waterful_logs', JSON.stringify(allRecentLogs));
+        if (logs.length !== recentLogs.length) {
+          localStorage.setItem('waterful_logs', JSON.stringify(recentLogs));
         }
       }
     } catch (error) {
@@ -368,18 +364,15 @@ export default function Home() {
       try {
         const savedLogs = localStorage.getItem('waterful_logs');
         const allLogs = savedLogs ? JSON.parse(savedLogs) : [];
-        
-        const logMap = new Map(allLogs.map((l: DrinkLog) => [l.timestamp, l]));
+        const updatedLogs = [...allLogs];
         
         drinkLogs.forEach(log => {
-          if (!logMap.has(log.timestamp)) {
-            logMap.set(log.timestamp, log);
+          if (!updatedLogs.find(l => l.timestamp === log.timestamp)) {
+            updatedLogs.push(log);
           }
         });
 
-        const updatedLogs = Array.from(logMap.values());
         localStorage.setItem('waterful_logs', JSON.stringify(updatedLogs));
-
       } catch (error) {
         console.error("Failed to save logs to localStorage", error);
       }
@@ -479,7 +472,7 @@ export default function Home() {
     if ('serviceWorker' in navigator && Notification.permission === 'granted') {
       try {
         const registration = await navigator.serviceWorker.ready;
-        registration.showNotification('Não poupe água: Hora de beber água! 💧', {
+        registration.showNotification('Não poupe àgua: Hora de beber água! 💧', {
           body: 'Um gole agora para um dia melhor. Mantenha-se hidratado!',
           icon: '/icon.png',
           silent: settings.sound === 'silencioso',
@@ -652,7 +645,7 @@ export default function Home() {
                 <div className="w-full h-[250px]">
                   <HydrationChart data={drinkLogs} settings={settings} />
                 </div>
-              </CardContent>
+              </CartContent>
               <CardFooter className="flex-col sm:flex-row justify-center gap-4">
                 <Button size="lg" className="w-full sm:w-auto transform hover:scale-105 transition-transform" onClick={handleLogDrink}>
                   <WaterDropIcon className="mr-2 h-5 w-5" /> Já bebi água!
@@ -674,10 +667,3 @@ export default function Home() {
     </div>
   );
 }
-
-
-    
-
-    
-
-    
