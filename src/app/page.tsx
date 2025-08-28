@@ -171,7 +171,7 @@ const AppSkeleton = () => (
 );
 
 
-const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, isSidebarVisible, onToggleReminders }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, playSound: (sound: string) => void, isSidebarVisible: boolean, onToggleReminders: () => void }) => {
+const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, isSidebarVisible }: { settings: Settings, setSettings: React.Dispatch<React.SetStateAction<Settings>>, handleQuickSchedule: (interval: number) => void, playSound: (sound: string) => void, isSidebarVisible: boolean }) => {
     
     const handleSoundChange = (soundName: string) => {
         setSettings(s => ({ ...s, sound: soundName }));
@@ -282,24 +282,6 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, playSound, 
                 </div>
             </div>
         </div>
-        <TooltipProvider delayDuration={100}>
-        <Tooltip>
-        <TooltipTrigger asChild>
-          <Button 
-            className="w-full" 
-            onClick={onToggleReminders}
-            variant={settings.isReminderActive ? "destructive" : "default"}
-          >
-            {isSidebarVisible ? (settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes") : <Bell className="h-5 w-5"/>}
-          </Button>
-          </TooltipTrigger>
-           {!isSidebarVisible && (
-            <TooltipContent side="right">
-              <p>{settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes"}</p>
-            </TooltipContent>
-          )}
-          </Tooltip>
-        </TooltipProvider>
     </div>
     );
 };
@@ -612,7 +594,7 @@ export default function Home() {
         "hidden lg:block border-r border-border overflow-y-auto transition-all duration-300 ease-in-out",
         isSidebarVisible ? "w-80" : "w-24"
       )}>
-        <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={isSidebarVisible} onToggleReminders={handleToggleReminders}/>
+        <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={isSidebarVisible}/>
       </aside>
 
       {/* Conteúdo Principal */}
@@ -650,7 +632,7 @@ export default function Home() {
                       <SheetHeader className="p-4 border-b">
                         <SheetTitle>Configurações</SheetTitle>
                       </SheetHeader>
-                      <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={true} onToggleReminders={handleToggleReminders}/>
+                      <SettingsPanel settings={settings} setSettings={setSettings} handleQuickSchedule={handleQuickSchedule} playSound={playSound} isSidebarVisible={true}/>
                   </SheetContent>
               </Sheet>
             </div>
@@ -668,9 +650,18 @@ export default function Home() {
                   <HydrationChart data={drinkLogs} settings={settings} />
                 </div>
               </CardContent>
-              <CardFooter className="justify-center">
-                <Button size="lg" className="w-full md:w-auto transform hover:scale-105 transition-transform" onClick={handleLogDrink}>
+              <CardFooter className="flex-col sm:flex-row justify-center gap-4">
+                <Button size="lg" className="w-full sm:w-auto transform hover:scale-105 transition-transform" onClick={handleLogDrink}>
                   <WaterDropIcon className="mr-2 h-5 w-5" /> Já bebi água!
+                </Button>
+                <Button 
+                  size="lg"
+                  className="w-full sm:w-auto" 
+                  onClick={handleToggleReminders}
+                  variant={settings.isReminderActive ? "destructive" : "default"}
+                >
+                  <Bell className="mr-2 h-5 w-5"/>
+                  {settings.isReminderActive ? "Parar Lembretes" : "Iniciar Lembretes"}
                 </Button>
               </CardFooter>
           </Card>
