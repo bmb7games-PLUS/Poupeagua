@@ -191,7 +191,7 @@ const SettingsPanel = ({ settings, setSettings, handleQuickSchedule, isSidebarVi
 
     return (
         <div className="flex flex-col h-full">
-            <div className="p-4 border-b">
+             <div className="p-4 border-b">
                 <h3 className={cn("text-lg font-medium flex items-center gap-2", !isSidebarVisible && "justify-center")}>
                     <TooltipProvider delayDuration={100}>
                         <Tooltip>
@@ -390,11 +390,10 @@ export default function Home() {
 
   
   const handleToggleReminders = useCallback(() => {
-    setSettings(s => ({ ...s, isReminderActive: !s.isReminderActive }));
-  }, []);
+    const newIsReminderActive = !settings.isReminderActive;
+    setSettings(s => ({ ...s, isReminderActive: newIsReminderActive }));
 
-  useEffect(() => {
-    if (settings.isReminderActive) {
+     if (newIsReminderActive) {
       scheduleReminder();
       toast({
         title: "Lembretes iniciados!",
@@ -408,13 +407,30 @@ export default function Home() {
       }
       setNextReminder(null);
       setTimeRemaining(null);
+       toast({
+        title: "Lembretes pausados!",
+        description: "Você não receberá mais notificações.",
+        duration: 3000
+      });
     }
+  }, [settings.isReminderActive, settings.interval, scheduleReminder, toast]);
+
+  useEffect(() => {
+    if (settings.isReminderActive) {
+      scheduleReminder();
+    } else {
+      if (reminderTimeoutRef.current) {
+        clearTimeout(reminderTimeoutRef.current);
+      }
+      setNextReminder(null);
+    }
+
     return () => {
       if (reminderTimeoutRef.current) {
         clearTimeout(reminderTimeoutRef.current);
       }
     };
-  }, [settings.isReminderActive, settings.interval, scheduleReminder, toast]);
+  }, [settings.isReminderActive, settings.interval]);
   
   const requestNotificationPermission = useCallback(async () => {
     if (!('Notification' in window)) {
@@ -457,58 +473,47 @@ export default function Home() {
     requestNotificationPermission();
   }, [requestNotificationPermission]);
 
-  useEffect(() => {
-    if (!isMounted) return;
-    try {
-      const savedLogs = localStorage.getItem('waterful_logs') || '[]';
-      let allLogs: DrinkLog[];
-      try {
-        allLogs = JSON.parse(savedLogs);
-        if (!Array.isArray(allLogs)) {
-            allLogs = [];
-        }
-      } catch {
-        allLogs = [];
-      }
-      
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const startOfToday = today.getTime();
-      
-      const recentLogs = allLogs.filter(log => log.timestamp >= startOfToday);
-
-      const todaysTimestamps = new Set(recentLogs.map(l => l.timestamp));
-      
-      const newLogsForToday = drinkLogs.filter(log => !todaysTimestamps.has(log.timestamp));
-
-      if (newLogsForToday.length > 0) {
-        const updatedLogs = [...recentLogs, ...newLogsForToday];
-        localStorage.setItem('waterful_logs', JSON.stringify(updatedLogs));
-      }
-
-    } catch (error) {
-      console.error("Failed to save logs to localStorage", error);
-    }
-  }, [drinkLogs, isMounted]);
 
   useEffect(() => {
     if (isMounted) {
       localStorage.setItem('waterful_settings', JSON.stringify(settings));
     }
   }, [settings, isMounted]);
-  
+
   const handleLogDrink = useCallback(() => {
     const now = Date.now();
-    setDrinkLogs(prev => [...prev, { timestamp: now }]);
-    toast({
-      title: "Hidratação Registrada!",
-      description: "Excelente! O cronômetro foi reiniciado.",
-      duration: 3000,
+    const newLog = { timestamp: now };
+    
+    setDrinkLogs(prevLogs => {
+        const updatedLogs = [...prevLogs, newLog];
+        try {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const startOfToday = today.getTime();
+
+            const logsFromOtherDays = (JSON.parse(localStorage.getItem('waterful_logs') || '[]') as DrinkLog[])
+                .filter(log => log.timestamp < startOfToday);
+            
+            const logsToSave = [...logsFromOtherDays, ...updatedLogs];
+            
+            localStorage.setItem('waterful_logs', JSON.stringify(logsToSave));
+        } catch (error) {
+            console.error("Failed to save logs to localStorage", error);
+        }
+        return updatedLogs;
     });
-     if (settings.isReminderActive) {
-      scheduleReminder();
+
+    toast({
+        title: "Hidratação Registrada!",
+        description: "Excelente! O cronômetro foi reiniciado.",
+        duration: 3000,
+    });
+    
+    if (settings.isReminderActive) {
+        scheduleReminder();
     }
   }, [toast, settings.isReminderActive, scheduleReminder]);
+  
   
   const handleQuickSchedule = useCallback((interval: number) => {
     setSettings(s => ({ ...s, interval }));
@@ -663,3 +668,4 @@ export default function Home() {
   );
 }
 
+    
